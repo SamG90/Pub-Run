@@ -201,21 +201,24 @@ function App() {
 
             <div className="instruction-card">
               <h2>📘 How to Play</h2>
-              <p><strong>Target:</strong> Reach <strong>1000 steps</strong> to make it to <strong>The Coomera Lodge</strong> and win.</p>
+              <p><strong>Target:</strong> Reach <strong>1000 steps</strong> and make it to <strong>The Coomera Lodge</strong> to win.</p>
+
+              <h3>🎮 Controls</h3>
               <ul>
-                <li><strong>Move Forward:</strong> Tap the <strong>middle</strong> of the screen.</li>
-                <li><strong>Dodge:</strong> Tap <strong>left</strong> or <strong>right</strong> to switch lanes.</li>
-                <li><strong>Avoid Obstacles:</strong> Cars, taxis, utes, mower, and food/servo spots can wipe you out.</li>
+                <li><strong>Tap Middle:</strong> Move forward 1 step.</li>
+                <li><strong>Tap Left / Right:</strong> Change lanes to dodge danger.</li>
               </ul>
 
-              <h3>🍺 Perks & Milestones</h3>
+              <h3>🚧 Obstacles to dodge</h3>
+              <p>Car, Taxi, Ute, Kebab Stand, 7-Eleven, Bottle Shop, KFC, Burger Bar, Lawn Mower.</p>
+
+              <h3>🍺 Perks & milestones</h3>
               <ul>
-                <li><strong>Extra Lives:</strong> Earn +1 life every <strong>50 steps</strong> (up to 5 lives).</li>
-                <li><strong>100 Steps:</strong> Beer unlocked.</li>
-                <li><strong>200 Steps:</strong> Pint unlocked.</li>
-                <li><strong>300 Steps:</strong> Spirit unlocked.</li>
-                <li><strong>400-900 Steps:</strong> Fire milestone shoutouts every 100.</li>
-                <li><strong>Near High Score:</strong> You'll get hype warnings when within 15 steps.</li>
+                <li><strong>Start Lives:</strong> 1 life.</li>
+                <li><strong>Extra Lives:</strong> +1 life every <strong>50 steps</strong> (up to <strong>5</strong> total).</li>
+                <li><strong>Collision:</strong> A hit uses one life and clears that obstacle.</li>
+                <li><strong>Milestones:</strong> 100 = Beer, 200 = Pint, 300 = Spirit, then hype shoutouts every 100 up to 900.</li>
+                <li><strong>High Score Pressure:</strong> Warning messages appear when you are within 15 of the all-time high.</li>
               </ul>
             </div>
 
