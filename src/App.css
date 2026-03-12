@@ -49,6 +49,55 @@
   padding: 1rem 0 3rem 0; /* Extra padding at bottom for scroll breathing room */
 }
 
+
+.instruction-card {
+  width: 100%;
+  max-width: 420px;
+  margin: 0.5rem 0 0.8rem;
+  padding: 1rem 1.1rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  text-align: left;
+}
+
+.instruction-card h2,
+.instruction-card h3 {
+  margin: 0 0 0.45rem;
+  color: #fbbf24;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
+.instruction-card h2 {
+  font-size: 1.1rem;
+}
+
+.instruction-card h3 {
+  font-size: 1rem;
+  margin-top: 0.8rem;
+}
+
+.instruction-card p {
+  margin: 0 0 0.45rem;
+  max-width: 100%;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.instruction-card ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.15rem;
+  color: #e2e8f0;
+}
+
+.instruction-card li {
+  margin-bottom: 0.35rem;
+  line-height: 1.35;
+  font-size: 0.9rem;
+}
+
 .home-leaderboard-section {
   width: 100%;
   max-width: 420px;

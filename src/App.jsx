@@ -199,6 +199,26 @@ function App() {
               TAP TO PLAY
             </button>
 
+            <div className="instruction-card">
+              <h2>📘 How to Play</h2>
+              <p><strong>Target:</strong> Reach <strong>1000 steps</strong> to make it to <strong>The Coomera Lodge</strong> and win.</p>
+              <ul>
+                <li><strong>Move Forward:</strong> Tap the <strong>middle</strong> of the screen.</li>
+                <li><strong>Dodge:</strong> Tap <strong>left</strong> or <strong>right</strong> to switch lanes.</li>
+                <li><strong>Avoid Obstacles:</strong> Cars, taxis, utes, mower, and food/servo spots can wipe you out.</li>
+              </ul>
+
+              <h3>🍺 Perks & Milestones</h3>
+              <ul>
+                <li><strong>Extra Lives:</strong> Earn +1 life every <strong>50 steps</strong> (up to 5 lives).</li>
+                <li><strong>100 Steps:</strong> Beer unlocked.</li>
+                <li><strong>200 Steps:</strong> Pint unlocked.</li>
+                <li><strong>300 Steps:</strong> Spirit unlocked.</li>
+                <li><strong>400-900 Steps:</strong> Fire milestone shoutouts every 100.</li>
+                <li><strong>Near High Score:</strong> You'll get hype warnings when within 15 steps.</li>
+              </ul>
+            </div>
+
             <div className="home-leaderboard-section">
               <Scoreboard 
                 scores={topScores} 
