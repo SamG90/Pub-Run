@@ -50,6 +50,50 @@ export const submitScore = mutation({
   },
 });
 
+
+export const submitSuggestion = mutation({
+  args: {
+    deviceId: v.string(),
+    playerName: v.string(),
+    message: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const trimmedMessage = args.message.trim();
+    if (!trimmedMessage) {
+      throw new Error("Suggestion cannot be empty");
+    }
+
+    let player = await ctx.db
+      .query("players")
+      .withIndex("by_device", (q) => q.eq("deviceId", args.deviceId))
+      .first();
+
+    let playerId;
+    if (player) {
+      playerId = player._id;
+      await ctx.db.patch(playerId, {
+        playerName: args.playerName,
+      });
+    } else {
+      playerId = await ctx.db.insert("players", {
+        deviceId: args.deviceId,
+        playerName: args.playerName,
+        totalRuns: 0,
+        totalPlayTime: 0,
+        createdAt: Date.now(),
+      });
+    }
+
+    await ctx.db.insert("suggestions", {
+      playerId,
+      deviceId: args.deviceId,
+      playerName: args.playerName,
+      message: trimmedMessage,
+      createdAt: Date.now(),
+    });
+  },
+});
+
 export const updateScore = mutation({
   args: {
     id: v.id("scores"),

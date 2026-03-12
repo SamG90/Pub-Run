@@ -49,6 +49,58 @@
   padding: 1rem 0 3rem 0; /* Extra padding at bottom for scroll breathing room */
 }
 
+
+.suggestions-toggle-btn {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+.suggestion-panel {
+  width: 100%;
+  max-width: 420px;
+  margin: 0.5rem 0 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.suggestion-title {
+  margin: 0;
+  max-width: 100%;
+  color: #fde68a;
+  font-weight: 700;
+}
+
+.suggestion-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 160px;
+  border-radius: 12px;
+  border: 2px solid rgba(243, 156, 18, 0.7);
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  padding: 12px;
+  font-size: 16px;
+  font-family: 'Outfit', sans-serif;
+}
+
+.suggestion-textarea:focus {
+  outline: none;
+  border-color: #fbbf24;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+}
+
+.suggestion-status {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 14px;
+  max-width: 100%;
+}
+
 .home-leaderboard-section {
   width: 100%;
   max-width: 420px;
