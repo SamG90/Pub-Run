@@ -34,7 +34,7 @@ const colWidth = W / COLS;
 const laneHeight = colWidth;
 const horizonY = H * 0.25;
 
-const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit }) => {
+const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit, onApproachingHighScore, onApproachingLife }) => {
   const canvasRef = useRef(null);
   const [assetsLoaded, setAssetsLoaded] = React.useState(false);
 
@@ -283,6 +283,17 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     // Gain a life every 50 steps
     if (s.score > 0 && s.score % 50 === 0) {
       if (s.lives < 5) s.lives++;
+    }
+
+    // Check approaching life
+    if (s.score > 0 && s.score % 50 >= 45 && s.score % 50 < 50) {
+      if (onApproachingLife) onApproachingLife();
+    }
+
+    // Check approaching high score
+    let distToHighScore = highScore - s.score;
+    if (distToHighScore > 0 && distToHighScore <= 15) {
+      if (onApproachingHighScore) onApproachingHighScore();
     }
 
     onScoreUpdate(s.score);

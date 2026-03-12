@@ -50,7 +50,10 @@ function App() {
 
   const startGame = () => {
     if (!playerName.trim()) return;
-    if (synthRef.current) synthRef.current.init();
+    if (synthRef.current) {
+      synthRef.current.init();
+      synthRef.current.enterGame();
+    }
     setScore(0);
     setMilestone('');
     setScoreSubmitted(false);
@@ -115,6 +118,14 @@ function App() {
     if (synthRef.current) synthRef.current.dodge();
   };
 
+  const handleApproachingHighScore = useCallback(() => {
+    if (synthRef.current) synthRef.current.approachingHighScore();
+  }, []);
+
+  const handleApproachingLife = useCallback(() => {
+    if (synthRef.current) synthRef.current.approachingLife();
+  }, []);
+
   const goToMainMenu = useCallback(() => {
     setLeaderboardPassword('');
     setPasswordError('');
@@ -153,6 +164,8 @@ function App() {
         onScoreUpdate={handleScoreUpdate}
         onDodge={handleDodge}
         onBeerHit={handleBeerHit}
+        onApproachingHighScore={handleApproachingHighScore}
+        onApproachingLife={handleApproachingLife}
       />
 
       {gameState === 'START' && (

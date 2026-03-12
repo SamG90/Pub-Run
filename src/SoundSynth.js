@@ -34,13 +34,34 @@ export default class SoundSynth {
   }
 
   step() {
-    this.playTone(300, 'square', 0.05, 0.05, 0.01, 0.04);
-    setTimeout(() => this.playTone(400, 'square', 0.05, 0.05, 0.01, 0.04), 50);
+    // Lower pitched sound for stepping
+    this.playTone(150, 'triangle', 0.05, 0.03, 0.01, 0.04);
   }
 
   dodge() {
-    this.playTone(800, 'sine', 0.1, 0.05, 0.01, 0.09);
-    setTimeout(() => this.playTone(600, 'sine', 0.1, 0.05, 0.01, 0.09), 60);
+    this.playTone(400, 'sine', 0.1, 0.04, 0.01, 0.09);
+    setTimeout(() => this.playTone(300, 'sine', 0.1, 0.04, 0.01, 0.09), 60);
+  }
+
+  enterGame() {
+    // Welcoming rising chord
+    this.playTone(261.63, 'sine', 0.3, 0.1, 0.05, 0.2); // C4
+    setTimeout(() => this.playTone(329.63, 'sine', 0.3, 0.1, 0.05, 0.2), 100); // E4
+    setTimeout(() => this.playTone(392.00, 'sine', 0.4, 0.1, 0.05, 0.3), 200); // G4
+    setTimeout(() => this.playTone(523.25, 'sine', 0.6, 0.15, 0.05, 0.5), 300); // C5
+  }
+
+  approachingHighScore() {
+    // Tense, low heartbeat sound
+    this.playTone(80, 'sine', 0.15, 0.2, 0.05, 0.1);
+    setTimeout(() => this.playTone(70, 'sine', 0.2, 0.2, 0.05, 0.15), 200);
+  }
+
+  approachingLife() {
+    // Magical twinkling, rising chime
+    this.playTone(659.25, 'triangle', 0.1, 0.05, 0.02, 0.08); // E5
+    setTimeout(() => this.playTone(880.00, 'triangle', 0.1, 0.05, 0.02, 0.08), 80); // A5
+    setTimeout(() => this.playTone(1046.50, 'triangle', 0.15, 0.05, 0.02, 0.1), 160); // C6
   }
 
   crash() {
@@ -73,9 +94,11 @@ export default class SoundSynth {
 
   beerHit() {
     if (!this.audioCtx) return;
-    this.playTone(200, 'sawtooth', 0.1, 0.2, 0.05, 0.1);
-    setTimeout(() => this.playTone(150, 'sawtooth', 0.2, 0.2, 0.05, 0.2), 100);
-    setTimeout(() => this.playTone(100, 'sawtooth', 0.4, 0.2, 0.05, 0.4), 300);
+    // Lower, more punishing thud
+    this.playTone(150, 'sawtooth', 0.1, 0.3, 0.02, 0.1);
+    setTimeout(() => this.playTone(100, 'sawtooth', 0.2, 0.3, 0.02, 0.2), 80);
+    setTimeout(() => this.playTone(50, 'sawtooth', 0.4, 0.3, 0.02, 0.4), 200);
+    this.crash(); // use existing crash noise for extra effect
   }
 
   milestone() {
