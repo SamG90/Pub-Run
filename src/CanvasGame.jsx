@@ -34,7 +34,7 @@ const colWidth = W / COLS;
 const laneHeight = colWidth;
 const horizonY = H * 0.25;
 
-const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit, onApproachingHighScore, onApproachingLife }) => {
+const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit, onBeerPickup, onApproachingHighScore, onApproachingLife }) => {
   const canvasRef = useRef(null);
   const [assetsLoaded, setAssetsLoaded] = React.useState(false);
 
@@ -89,6 +89,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     let hasObstacle = !isSafe && Math.random() > 0.35;
     let obstacle = null;
     let direction = Math.random() > 0.5 ? 1 : -1;
+    let beerPickupCol = null;
     
     if (hasObstacle) {
       let type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
@@ -99,7 +100,13 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       };
     }
     
-    return { y, isSafe: isSafe || !hasObstacle, obstacle };
+    // Rare off-centre free beer pickup to reward risky side moves on mobile.
+    if (!isSafe && Math.random() < 0.08) {
+      const offCentreCols = [0, 1, 3, 4];
+      beerPickupCol = offCentreCols[Math.floor(Math.random() * offCentreCols.length)];
+    }
+
+    return { y, isSafe: isSafe || !hasObstacle, obstacle, beerPickupCol };
   };
 
   const initGame = () => {
@@ -348,6 +355,12 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
       // Check collision
       if (Math.abs(lane.y - (H - laneHeight * 2)) < 5) {
+        if (lane.beerPickupCol !== null && lane.beerPickupCol === s.player.col) {
+          if (s.lives < 5) s.lives++;
+          lane.beerPickupCol = null;
+          if (onBeerPickup) onBeerPickup();
+        }
+
         if (lane.obstacle) {
           let obsX = lane.obstacle.x + colWidth / 2;
           if (Math.abs(pX - obsX) < colWidth * 0.40) {
@@ -476,6 +489,31 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
           let h = w * (img.height / img.width);
           ctx.drawImage(img, (cx - w/2) | 0, (cy - h/2) | 0, w, h);
         }
+      }
+
+      if (lane.beerPickupCol !== null) {
+        const cx = lane.beerPickupCol * colWidth + colWidth / 2;
+        const cy = lane.y + laneHeight / 2;
+        const radius = colWidth * 0.2;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.arc(cx + 2, cy + 4, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fde68a';
+        ctx.fillRect(cx - radius * 0.9, cy - radius * 0.8, radius * 1.8, radius * 0.45);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🍺', cx, cy + 1);
       }
     });
 

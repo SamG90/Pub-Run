@@ -96,6 +96,10 @@ function App() {
     if (synthRef.current) synthRef.current.beerHit();
   };
 
+  const handleBeerPickup = () => {
+    if (synthRef.current) synthRef.current.beerPickup();
+  };
+
   const handleScoreUpdate = (newScore) => {
     setScore(newScore);
     if (synthRef.current) synthRef.current.step();
@@ -164,6 +168,7 @@ function App() {
         onScoreUpdate={handleScoreUpdate}
         onDodge={handleDodge}
         onBeerHit={handleBeerHit}
+        onBeerPickup={handleBeerPickup}
         onApproachingHighScore={handleApproachingHighScore}
         onApproachingLife={handleApproachingLife}
       />
