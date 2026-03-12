@@ -351,7 +351,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       if (Math.abs(lane.y - (H - laneHeight * 2)) < 5) {
         if (lane.obstacle) {
           let obsX = lane.obstacle.x + colWidth / 2;
-          if (Math.abs(pX - obsX) < colWidth * 0.6) {
+          if (Math.abs(pX - obsX) < colWidth * 0.40) {
             // Collision logic with lives
             if (s.lives > 0) {
               s.lives--;
@@ -396,33 +396,37 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
         
         ctx.save();
         
-        // Create a soft vignette/mask to blend the building edges
-        const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = w;
-        maskCanvas.height = h;
-        const mctx = maskCanvas.getContext('2d');
-        
-        mctx.drawImage(pubImg, 0, 0, w, h);
-        
-        // Use 'destination-in' to apply a soft alpha mask
-        mctx.globalCompositeOperation = 'destination-in';
-        
-        // Radial gradient for soft side edges
-        const radGrd = mctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
-        radGrd.addColorStop(0.7, 'rgba(0,0,0,1)');
-        radGrd.addColorStop(1, 'rgba(0,0,0,0)');
-        mctx.fillStyle = radGrd;
-        mctx.fillRect(0, 0, w, h);
-        
-        // Linear gradient for soft bottom/river blend
-        const linGrd = mctx.createLinearGradient(0, 0, 0, h);
-        linGrd.addColorStop(0.8, 'rgba(0,0,0,1)');
-        linGrd.addColorStop(1, 'rgba(0,0,0,0)');
-        mctx.fillStyle = linGrd;
-        mctx.fillRect(0, 0, w, h);
+        if (!s.pubMaskedCanvas) {
+            // Create a soft vignette/mask to blend the building edges
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = w;
+            maskCanvas.height = h;
+            const mctx = maskCanvas.getContext('2d');
+            
+            mctx.drawImage(pubImg, 0, 0, w, h);
+            
+            // Use 'destination-in' to apply a soft alpha mask
+            mctx.globalCompositeOperation = 'destination-in';
+            
+            // Radial gradient for soft side edges
+            const radGrd = mctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
+            radGrd.addColorStop(0.7, 'rgba(0,0,0,1)');
+            radGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            mctx.fillStyle = radGrd;
+            mctx.fillRect(0, 0, w, h);
+            
+            // Linear gradient for soft bottom/river blend
+            const linGrd = mctx.createLinearGradient(0, 0, 0, h);
+            linGrd.addColorStop(0.8, 'rgba(0,0,0,1)');
+            linGrd.addColorStop(1, 'rgba(0,0,0,0)');
+            mctx.fillStyle = linGrd;
+            mctx.fillRect(0, 0, w, h);
+            
+            s.pubMaskedCanvas = maskCanvas;
+        }
         
         // Draw the masked result
-        ctx.drawImage(maskCanvas, -w/2, -h + 20);
+        ctx.drawImage(s.pubMaskedCanvas, -w/2, -h + 20);
         ctx.restore();
     }
 
