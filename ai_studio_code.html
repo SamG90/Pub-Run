@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pub Run</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #111;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  #game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 500px;
+    max-height: 800px;
+    background: #2c3e50;
+    overflow: hidden;
+    touch-action: none; /* Prevents swiping the screen */
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+    z-index: 10;
+  }
+  .hidden { display: none !important; }
+  button {
+    padding: 15px 30px;
+    font-size: 20px;
+    margin-top: 20px;
+    cursor: pointer;
+    background: #f39c12;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 4px #d35400;
+  }
+  button:active { transform: translateY(4px); box-shadow: none; }
+  h1 { font-size: 48px; margin: 10px 0; color: #f1c40f; text-shadow: 2px 2px #d35400; }
+  h2 { font-size: 24px; margin: 5px 0; }
+  p { font-size: 16px; max-width: 85%; line-height: 1.5; margin: 10px 0; }
+  .credits {
+    font-size: 14px;
+    color: #bdc3c7;
+    margin-top: 30px;
+    border-top: 1px solid #7f8c8d;
+    padding-top: 15px;
+    line-height: 1.6;
+  }
+  #scoreBoard {
+    position: absolute;
+    top: 15px; left: 15px;
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 0 #000;
+    z-index: 5;
+  }
+  #milestone {
+    position: absolute;
+    top: 30%; width: 100%;
+    text-align: center;
+    font-size: 32px;
+    font-weight: bold;
+    color: #f1c40f;
+    text-shadow: 2px 2px 0 #c0392b;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <canvas id="game"></canvas>
+  <div id="scoreBoard">Steps: 0</div>
+  <div id="milestone">🍺 YOU EARNED A BEER!</div>
+
+  <!-- START SCREEN -->
+  <div id="startScreen" class="screen">
+    <h1>PUB RUN</h1>
+    <p>Cross the street to get to <strong>The Local (Coomera Lodge)</strong>. Dodge cars, rolling Kebab stands, 7-Elevens, and KFCs!</p>
+    <p><strong>Controls:</strong> Tap the MIDDLE to step forward. Tap LEFT or RIGHT to dodge.</p>
+    <button onclick="startGame()">Start Game</button>
+    <div class="credits">
+      <p>Creative Consultant: <strong>Mr. Walker</strong></p>
+      <p>All of the hard work: <strong>Mr. Graham</strong></p>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="gameOverScreen" class="screen hidden">
+    <h1>SPLAT!</h1>
+    <h2>You got wiped out.</h2>
+    <p id="endScore">Steps: 0</p>
+    <button onclick="startGame()">Try Again</button>
+  </div>
+
+  <!-- WIN SCREEN -->
+  <div id="winScreen" class="screen hidden">
+    <h1>🏆 THE BOSS 🏆</h1>
+    <h2>Welcome to the Coomera Lodge!</h2>
+    <p id="winTime" style="font-size: 32px; font-weight: bold; color:#f1c40f;">Time: 0.00s</p>
+    <p>You survived 1000 steps and are now the official Owner of the Pub.</p>
+    <button onclick="startGame()">Defend Your Title (Play Again)</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Virtual Resolution (Scaling handled by CSS)
+const W = 500;
+const H = 800;
+canvas.width = W;
+canvas.height = H;
+
+const COLS = 5;
+const colWidth = W / COLS;
+const laneHeight = colWidth;
+const horizonY = H * 0.25;
+
+const OBSTACLE_TYPES =[
+  { emoji: '🚗', speed: 4, prob: 0.5 },
+  { emoji: '🥙', speed: 2.5, prob: 0.15 }, // Kebab stand
+  { emoji: '🏪', speed: 3, prob: 0.15 },   // 7-Eleven
+  { emoji: '🍗', speed: 5, prob: 0.2 }     // KFC
+];
+
+let state = 'START';
+let score = 0;
+let startTime = 0;
+let lanes =[];
+let lastTime = 0;
+let player = { col: 2 }; // Starts in the middle column
+
+function startGame() {
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  document.getElementById('winScreen').classList.add('hidden');
+  document.getElementById('scoreBoard').innerText = "Steps: 0";
+  
+  score = 0;
+  startTime = Date.now();
+  player.col = Math.floor(COLS / 2);
+  lanes =[];
+  
+  // Pre-fill screen with lanes from the bottom up to ensure alignment
+  let currentY = H - laneHeight;
+  while(currentY >= horizonY - laneHeight) {
+    let isSafe = currentY >= H - laneHeight * 3; // Bottom 3 lanes are safe zones
+    lanes.unshift(generateLane(currentY, isSafe));
+    currentY -= laneHeight;
+  }
+  
+  state = 'PLAY';
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function generateLane(y, isSafe = false) {
+  let hasObstacle = !isSafe && Math.random() > 0.35; // 65% chance of spawning an object
+  let obstacle = null;
+  let direction = Math.random() > 0.5 ? 1 : -1;
+  
+  if (hasObstacle) {
+    let type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
+    obstacle = {
+      emoji: type.emoji,
+      x: direction === 1 ? -colWidth : W + colWidth,
+      speed: type.speed * direction * (0.8 + Math.random() * 0.4)
+    };
+  }
+  
+  return {
+    y: y,
+    isSafe: isSafe || !hasObstacle,
+    obstacle: obstacle
+  };
+}
+
+// User Controls Setup
+window.addEventListener('pointerdown', (e) => {
+  if (state !== 'PLAY') return;
+  if (e.target.tagName.toLowerCase() === 'button') return;
+
+  // Map click correctly regardless of screen size scaling
+  let rect = canvas.getBoundingClientRect();
+  let scaleX = canvas.width / rect.width;
+  let x = (e.clientX - rect.left) * scaleX;
+
+  if (x < W / 3) {
+    if (player.col > 0) player.col--; // Dodge Left
+  } else if (x > (W * 2) / 3) {
+    if (player.col < COLS - 1) player.col++; // Dodge Right
+  } else {
+    moveForward(); // Tap Middle
+  }
+});
+
+function moveForward() {
+  score++;
+  document.getElementById('scoreBoard').innerText = "Steps: " + score;
+  checkMilestones(score);
+  
+  if (score >= 1000) {
+    winGame();
+    return;
+  }
+  
+  // Shift lanes down visually
+  lanes.forEach(lane => lane.y += laneHeight);
+  lanes = lanes.filter(lane => lane.y < H); // cleanup off-screen
+  
+  // Add new lane at horizon
+  let topY = lanes[0].y - laneHeight;
+  lanes.unshift(generateLane(topY));
+}
+
+function checkMilestones(score) {
+  let text = '';
+  if (score === 100) text = '🍺 YOU EARNED A BEER!';
+  else if (score === 200) text = '🍻 YOU EARNED A PINT!';
+  else if (score === 300) text = '🥃 YOU EARNED A SPIRIT!';
+  else if (score % 100 === 0 && score > 300 && score < 1000) text = `🔥 ${score} STEPS! KEEP GOING!`;
+
+  if (text !== '') {
+    let m = document.getElementById('milestone');
+    m.innerText = text;
+    m.style.opacity = 1;
+    setTimeout(() => { m.style.opacity = 0; }, 2000);
+  }
+}
+
+function winGame() {
+  state = 'WIN';
+  let timeSeconds = ((Date.now() - startTime) / 1000).toFixed(2);
+  document.getElementById('winTime').innerText = `Time: ${timeSeconds}s`;
+  document.getElementById('winScreen').classList.remove('hidden');
+}
+
+function gameOver() {
+  state = 'GAMEOVER';
+  document.getElementById('endScore').innerText = `Steps taken: ${score}`;
+  document.getElementById('gameOverScreen').classList.remove('hidden');
+}
+
+function update(dt) {
+  if (state !== 'PLAY') return;
+  
+  let pX = player.col * colWidth + colWidth / 2;
+  let pY = H - laneHeight * 2 + laneHeight / 2; // Player is visually locked 2 lanes up
+
+  lanes.forEach(lane => {
+    // Update obstacle movement
+    if (lane.obstacle) {
+      lane.obstacle.x += lane.obstacle.speed * (dt / 16);
+      if (lane.obstacle.speed > 0 && lane.obstacle.x > W + colWidth) lane.obstacle.x = -colWidth;
+      if (lane.obstacle.speed < 0 && lane.obstacle.x < -colWidth) lane.obstacle.x = W + colWidth;
+    }
+
+    // Check hit collision
+    if (Math.abs(lane.y - (H - laneHeight * 2)) < 5) {
+      if (lane.obstacle) {
+        let obsX = lane.obstacle.x + colWidth / 2;
+        if (Math.abs(pX - obsX) < colWidth * 0.6) {
+          gameOver();
+        }
+      }
+    }
+  });
+}
+
+function drawPub() {
+  // Sky
+  ctx.fillStyle = '#87CEEB';
+  ctx.fillRect(0, 0, W, horizonY);
+
+  // Parallax scaling effect so pub gets closer over 1000 steps
+  let progress = score / 1000;
+  let scale = 0.4 + (progress * 1.6);
+  
+  ctx.save();
+  ctx.translate(W / 2, horizonY); 
+  ctx.scale(scale, scale);
+
+  // The Coomera River Behind
+  ctx.fillStyle = '#3498db';
+  ctx.fillRect(-W, -35, W * 2, 35); 
+
+  // The Coomera Lodge Main Building / Pavilion
+  ctx.fillStyle = '#ecf0f1';
+  ctx.fillRect(-120, -110, 240, 90);
+  
+  // Heritage Roof
+  ctx.fillStyle = '#7f8c8d'; 
+  ctx.beginPath();
+  ctx.moveTo(-130, -110);
+  ctx.lineTo(0, -160);
+  ctx.lineTo(130, -110);
+  ctx.fill();
+
+  // Branding Signage
+  ctx.fillStyle = '#2c3e50';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText("COOMERA LODGE", 0, -65);
+  ctx.font = '12px sans-serif';
+  ctx.fillText("THE LOCAL", 0, -50);
+
+  // Open-air Beer Garden Deck
+  ctx.fillStyle = '#e67e22'; // Wooden deck color
+  ctx.fillRect(-160, -20, 320, 20);
+  
+  // Details (Trees, Beers, Music)
+  ctx.font = '24px Arial';
+  ctx.fillText("🌳", -130, -10);
+  ctx.fillText("🌳", 130, -10);
+  ctx.fillText("🍻", -70, -20);
+  ctx.fillText("🍻", 70, -20);
+  ctx.fillText("🍺", 0, -20);
+
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  
+  // Draw Road Lanes
+  lanes.forEach(lane => {
+    ctx.fillStyle = lane.isSafe ? '#2ecc71' : '#34495e';
+    ctx.fillRect(0, lane.y, W, laneHeight);
+
+    // Dashed road lines
+    if (!lane.isSafe) {
+      ctx.fillStyle = '#7f8c8d';
+      for(let i=1; i<COLS; i++) {
+        ctx.fillRect(i * colWidth - 2, lane.y + 15, 4, laneHeight - 30);
+      }
+    }
+
+    // Draw Obstacles
+    if (lane.obstacle) {
+      ctx.font = `${colWidth * 0.6}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(lane.obstacle.emoji, lane.obstacle.x + colWidth / 2, lane.y + laneHeight / 2);
+    }
+  });
+
+  // Draw Sky & Pub (drawn after lanes so it cleanly masks them crossing the horizon)
+  drawPub();
+
+  // Draw Player Marker
+  ctx.font = `${colWidth * 0.65}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🚶‍♂️', player.col * colWidth + colWidth / 2, H - laneHeight * 2 + laneHeight / 2);
+}
+
+function loop(time) {
+  let dt = time - lastTime;
+  lastTime = time;
+  update(dt);
+  draw();
+  if (state === 'PLAY') {
+    requestAnimationFrame(loop);
+  }
+}
+</script>
+</body>
+</html>

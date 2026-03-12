@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" role="img" aria-label="Australian pub with beer garden">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="14" flood-color="#0f172a" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#94a3b8"/>
+      <stop offset="1" stop-color="#64748b"/>
+    </linearGradient>
+    <linearGradient id="deck" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c08457"/>
+      <stop offset="1" stop-color="#8b5e34"/>
+    </linearGradient>
+  </defs>
+  <g shape-rendering="crispEdges">
+    <ellipse cx="325" cy="560" rx="215" ry="44" fill="#0f172a" opacity="0.12"/>
+    <g filter="url(#shadow)" stroke="#15131d" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+      <g transform="translate(0 6)">
+        <polygon points="132 490 296 392 515 437 350 532" fill="#8b5e34"/>
+        <polygon points="100 384 205 320 468 320 543 382 355 474 177 456" fill="url(#deck)"/>
+        <polygon points="179 234 321 160 443 184 430 291 232 291" fill="url(#roof)"/>
+        <polygon points="321 160 471 220 468 320 443 184" fill="#7c8797"/>
+        <polygon points="232 291 430 291 468 320 205 320" fill="#9a6b43"/>
+        <polygon points="205 320 468 320 468 201 320 155 205 214" fill="#c2410c"/>
+        <polygon points="205 214 320 155 471 220 350 285" fill="#94a3b8"/>
+        <rect x="240" y="205" width="142" height="64" rx="10" fill="#8b5a2b"/>
+        <text x="311" y="230" fill="#fef3c7" stroke="none" font-family="Arial Black, Arial, sans-serif" font-size="26" text-anchor="middle">BRUSH TURKEY</text>
+        <text x="311" y="254" fill="#fef3c7" stroke="none" font-family="Arial Black, Arial, sans-serif" font-size="22" text-anchor="middle">ARMS</text>
+        <text x="311" y="273" fill="#fde68a" stroke="none" font-family="Arial Black, Arial, sans-serif" font-size="11" text-anchor="middle">cold tins, hot chips, beer garden</text>
+        <rect x="225" y="300" width="112" height="112" rx="8" fill="#14532d"/>
+        <rect x="244" y="315" width="80" height="85" rx="6" fill="#dbeafe"/>
+        <rect x="349" y="285" width="64" height="136" rx="8" fill="#334155"/>
+        <rect x="362" y="299" width="38" height="90" rx="6" fill="#bfdbfe"/>
+        <circle cx="392" cy="356" r="6" fill="#f8fafc" stroke="none"/>
+        <rect x="418" y="282" width="30" height="62" rx="6" fill="#111827"/>
+        <text x="433" y="320" fill="#ec4899" stroke="none" font-family="Arial Black, Arial, sans-serif" font-size="16" text-anchor="middle">TAB</text>
+        <rect x="351" y="347" width="54" height="28" rx="4" fill="#111827"/>
+        <text x="378" y="367" fill="#22c55e" stroke="none" font-family="Arial Black, Arial, sans-serif" font-size="15" text-anchor="middle">OPEN</text>
+        <polygon points="140 383 262 383 286 454 177 456" fill="#b07a4c"/>
+        <polygon points="286 454 412 454 470 431 355 474" fill="#9a6b43"/>
+        <path d="M175 364 177 456" fill="none"/>
+        <path d="M225 335 230 429" fill="none"/>
+        <path d="M283 325 289 452" fill="none"/>
+        <path d="M353 322 353 474" fill="none"/>
+        <path d="M411 322 413 454" fill="none"/>
+        <path d="M463 346 470 431" fill="none"/>
+        <circle cx="174" cy="347" r="40" fill="#22c55e"/>
+        <rect x="170" y="347" width="8" height="74" fill="#8b5a2b"/>
+        <circle cx="444" cy="366" r="38" fill="#facc15"/>
+        <rect x="440" y="366" width="8" height="70" fill="#8b5a2b"/>
+        <rect x="215" y="390" width="56" height="32" rx="6" fill="#8b5a2b"/>
+        <rect x="217" y="423" width="8" height="20" fill="#8b5a2b"/>
+        <rect x="261" y="423" width="8" height="20" fill="#8b5a2b"/>
+        <rect x="367" y="397" width="52" height="30" rx="6" fill="#8b5a2b"/>
+        <rect x="369" y="427" width="8" height="19" fill="#8b5a2b"/>
+        <rect x="411" y="427" width="8" height="19" fill="#8b5a2b"/>
+        <circle cx="508" cy="381" r="35" fill="#16a34a"/>
+        <circle cx="523" cy="360" r="15" fill="#dc2626"/>
+        <circle cx="495" cy="363" r="14" fill="#dc2626"/>
+        <rect x="502" y="381" width="12" height="66" fill="#6b4423"/>
+        <path d="M247 181 257 210" fill="none" opacity="0.2"/>
+        <path d="M284 165 296 196" fill="none" opacity="0.2"/>
+        <path d="M324 155 338 188" fill="none" opacity="0.2"/>
+        <path d="M364 168 378 200" fill="none" opacity="0.2"/>
+        <rect x="274" y="176" width="68" height="36" rx="4" fill="#2563eb"/>
+        <path d="M308 176 308 212" fill="none" stroke="#93c5fd" stroke-width="4"/>
+        <path d="M274 194 342 194" fill="none" stroke="#93c5fd" stroke-width="4"/>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" role="img" aria-label="Isometric utility truck">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="14" flood-color="#0f172a" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="uteCab" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="uteTray" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e2e8f0"/>
+      <stop offset="1" stop-color="#94a3b8"/>
+    </linearGradient>
+    <linearGradient id="uteSide" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <g shape-rendering="crispEdges">
+    <ellipse cx="320" cy="520" rx="198" ry="50" fill="#0f172a" opacity="0.14"/>
+    <g filter="url(#shadow)" stroke="#15131d" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+      <g transform="translate(0 10)">
+        <polygon points="136 422 266 333 392 350 455 409 339 491 214 475" fill="url(#uteCab)"/>
+        <polygon points="392 350 500 365 555 421 452 439 455 409" fill="#60a5fa"/>
+        <polygon points="214 475 339 491 452 439 552 457 438 528 194 510" fill="url(#uteSide)"/>
+        <polygon points="452 439 552 457 552 419 455 409" fill="#3b82f6"/>
+        <polygon points="266 333 323 287 423 300 392 350" fill="#93c5fd"/>
+        <polygon points="423 300 473 346 500 365 392 350" fill="#60a5fa"/>
+        <polygon points="458 339 504 312 548 321 509 349" fill="#f59e0b"/>
+        <polygon points="504 312 536 337 570 398 542 411 509 349" fill="#fbbf24"/>
+        <polygon points="319 304 362 274 405 281 372 307" fill="#1f2937"/>
+        <polygon points="280 337 318 304 372 307 342 345" fill="#dbeafe"/>
+        <polygon points="372 307 405 281 454 326 394 351" fill="#bfdbfe"/>
+        <rect x="465" y="376" width="58" height="38" rx="8" fill="#e2e8f0"/>
+        <path d="M220 430 452 439" fill="none"/>
+        <path d="M279 339 246 438" fill="none"/>
+        <path d="M357 347 338 489" fill="none"/>
+        <path d="M454 352 452 439" fill="none"/>
+        <path d="M507 369 503 453" fill="none"/>
+        <path d="M224 419 316 356" fill="none" opacity="0.2"/>
+        <path d="M474 382 518 382" fill="none" opacity="0.25"/>
+        <circle cx="225" cy="468" r="52" fill="#0f172a"/>
+        <circle cx="225" cy="468" r="24" fill="#94a3b8" stroke-width="8"/>
+        <circle cx="426" cy="468" r="52" fill="#0f172a"/>
+        <circle cx="426" cy="468" r="24" fill="#94a3b8" stroke-width="8"/>
+        <circle cx="535" cy="463" r="46" fill="#0f172a"/>
+        <circle cx="535" cy="463" r="20" fill="#94a3b8" stroke-width="8"/>
+        <circle cx="149" cy="446" r="12" fill="#fb7185"/>
+        <circle cx="539" cy="397" r="13" fill="#fde68a"/>
+      </g>
+    </g>
+  </g>
+</svg>

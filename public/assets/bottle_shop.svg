@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" role="img" aria-label="Bottle shop storefront">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#0f172a" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15803d"/>
+      <stop offset="1" stop-color="#166534"/>
+    </linearGradient>
+  </defs>
+  <g shape-rendering="crispEdges">
+    <ellipse cx="320" cy="544" rx="205" ry="36" fill="#0f172a" opacity="0.12"/>
+    <g filter="url(#shadow)" stroke="#15131d" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+      <rect x="102" y="475" width="436" height="78" rx="8" fill="#cbd5e1"/>
+      <rect x="122" y="210" width="396" height="270" rx="18" fill="url(#wall)"/>
+      <polygon points="98 210 144 145 496 145 542 210" fill="url(#roof)"/>
+      <rect x="155" y="170" width="330" height="84" rx="14" fill="#dc2626"/>
+      <rect x="168" y="182" width="304" height="60" rx="10" fill="#facc15"/>
+      <text x="320" y="219" fill="#111827" stroke="none" font-family="Arial Black, Arial, sans-serif" font-size="44" text-anchor="middle">BOTTLE-O</text>
+      <text x="320" y="243" fill="#14532d" stroke="none" font-family="Arial Black, Arial, sans-serif" font-size="18" text-anchor="middle">cold beer, wine and snacks</text>
+      <rect x="135" y="262" width="105" height="168" rx="10" fill="#1d4ed8"/>
+      <rect x="147" y="274" width="81" height="128" rx="8" fill="#dbeafe"/>
+      <path d="M174 286 174 394" fill="none"/>
+      <path d="M201 286 201 394" fill="none"/>
+      <path d="M147 327 228 327" fill="none"/>
+      <path d="M147 364 228 364" fill="none"/>
+      <rect x="257" y="284" width="126" height="196" rx="12" fill="#334155"/>
+      <rect x="271" y="298" width="96" height="126" rx="8" fill="#bfdbfe"/>
+      <path d="M320 284 320 480" fill="none"/>
+      <circle cx="335" cy="388" r="8" fill="#f8fafc"/>
+      <rect x="403" y="262" width="85" height="128" rx="8" fill="#fef3c7"/>
+      <rect x="403" y="390" width="85" height="90" rx="8" fill="#78350f"/>
+      <path d="M403 304 488 304" fill="none"/>
+      <path d="M403 346 488 346" fill="none"/>
+      <path d="M431 262 431 390" fill="none"/>
+      <path d="M459 262 459 390" fill="none"/>
+      <rect x="109" y="432" width="422" height="30" rx="6" fill="#1f2937"/>
+      <rect x="146" y="448" width="68" height="42" rx="8" fill="#92400e"/>
+      <rect x="150" y="455" width="17" height="28" fill="#22c55e"/>
+      <rect x="173" y="455" width="17" height="28" fill="#f59e0b"/>
+      <rect x="196" y="455" width="12" height="28" fill="#ef4444"/>
+      <rect x="420" y="451" width="64" height="38" rx="8" fill="#92400e"/>
+      <path d="M441 452 441 489" fill="none"/>
+      <path d="M463 452 463 489" fill="none"/>
+      <rect x="506" y="432" width="18" height="58" rx="4" fill="#22c55e"/>
+      <rect x="510" y="419" width="10" height="20" rx="4" fill="#86efac"/>
+      <rect x="96" y="430" width="26" height="57" rx="6" fill="#ef4444"/>
+      <rect x="90" y="415" width="38" height="24" rx="8" fill="#111827"/>
+      <text x="109" y="433" fill="#f8fafc" stroke="none" font-family="Arial Black, Arial, sans-serif" font-size="16" text-anchor="middle">OPEN</text>
+      <path d="M141 210 499 210" fill="none" opacity="0.2"/>
+      <path d="M281 303 358 303" fill="none" opacity="0.15"/>
+    </g>
+  </g>
+</svg>

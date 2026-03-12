@@ -1,0 +1,250 @@
+.scoreboard {
+  width: 100%;
+  max-width: 420px;
+  margin: 1rem auto 0;
+}
+
+.scoreboard-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fbbf24;
+  text-align: center;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.6rem;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+
+.scoreboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.scoreboard-table thead th {
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  text-align: left;
+}
+
+.scoreboard-table thead th:first-child {
+  text-align: center;
+  width: 2.5rem;
+}
+
+.scoreboard-table thead th:last-child {
+  text-align: right;
+}
+
+.scoreboard-table tbody tr {
+  transition: background 0.2s;
+}
+
+.scoreboard-table tbody tr:hover {
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.scoreboard-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+}
+
+.scoreboard-table td:first-child {
+  text-align: center;
+  font-weight: 900;
+}
+
+.scoreboard-table td:last-child {
+  text-align: right;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.rank-1 {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #271c04;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
+.rank-2 {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  color: #0f172a;
+}
+
+.rank-3 {
+  background: linear-gradient(135deg, #d97706, #92400e);
+  color: #fef3c7;
+}
+
+.rank-other {
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+}
+
+.result-badge {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.result-win {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.result-gameover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.scoreboard-empty {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.85rem;
+  padding: 1rem 0;
+  font-style: italic;
+}
+
+.name-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.name-input {
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 2px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #f8fafc;
+  outline: none;
+  font-family: inherit;
+  width: 180px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.name-input:focus {
+  border-color: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
+}
+
+.name-input::placeholder {
+  color: #64748b;
+}
+
+.name-input[readonly] {
+  opacity: 0.8;
+  cursor: default;
+  border-color: rgba(251, 191, 36, 0.15);
+}
+
+.change-name-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.3rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.change-name-btn:hover {
+  opacity: 1;
+}
+
+.leaderboard-btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  margin-top: 10px;
+  cursor: pointer;
+  background: transparent;
+  border: 2px solid #f39c12;
+  border-radius: 10px;
+  color: #f39c12;
+  font-weight: bold;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+
+.leaderboard-btn:active {
+  background: #f39c12;
+  color: #271c04;
+}
+
+/* ── Admin Styles ───────────────────────────────────────── */
+.admin-runs {
+  color: #94a3b8 !important;
+  font-size: 0.8rem;
+  font-weight: 500 !important;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.admin-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.admin-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.admin-btn.confirm {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.edit-score-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #fbbf24;
+  border-radius: 4px;
+  color: #fbbf24;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 2px 4px;
+  width: 50px;
+  outline: none;
+}
+
