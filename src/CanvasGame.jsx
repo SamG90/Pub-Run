@@ -149,48 +149,47 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
     ctx.clearRect(0, 0, W, H);
 
-    // Sky gradient — warm sunset amber
-    const sky = ctx.createLinearGradient(0, 0, 0, horizonY + 60);
-    sky.addColorStop(0, '#1a1a2e');
-    sky.addColorStop(0.4, '#16213e');
-    sky.addColorStop(0.7, '#e67e22');
-    sky.addColorStop(1, '#f39c12');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, W, horizonY + 60);
+    // Sky gradient and static background caching
+    if (!ss.bgCanvas) {
+      ss.bgCanvas = document.createElement('canvas');
+      ss.bgCanvas.width = W;
+      ss.bgCanvas.height = H;
+      const bctx = ss.bgCanvas.getContext('2d');
+      
+      const sky = bctx.createLinearGradient(0, 0, 0, horizonY + 60);
+      sky.addColorStop(0, '#1a1a2e');
+      sky.addColorStop(0.4, '#16213e');
+      sky.addColorStop(0.7, '#e67e22');
+      sky.addColorStop(1, '#f39c12');
+      bctx.fillStyle = sky;
+      bctx.fillRect(0, 0, W, horizonY + 60);
 
-    // Draw the pub in the distance (bigger than game start) — use loading image
-    const pubLoadImg = s.images.pub_loading || s.images.pub;
-    if (pubLoadImg) {
-      ctx.save();
-      ctx.translate(W / 2, horizonY); 
-      
-      const w = W; // Full width of the canvas
-      const h = w * (pubLoadImg.height / pubLoadImg.width);
-      
-      // Draw image stretching across the screen, brought down so the roof is visible
-      ctx.drawImage(pubLoadImg, -w / 2, -h + 220, w, h);
-      ctx.restore();
+      const pubLoadImg = s.images.pub_loading || s.images.pub;
+      if (pubLoadImg) {
+        bctx.save();
+        bctx.translate(W / 2, horizonY); 
+        const w = W; 
+        const h = w * (pubLoadImg.height / pubLoadImg.width);
+        bctx.drawImage(pubLoadImg, -w / 2, -h + 220, w, h);
+        bctx.restore();
+      }
+
+      const laneYs = [horizonY + 40, horizonY + 140, horizonY + 240, horizonY + 340, horizonY + 440, horizonY + 540];
+      laneYs.forEach((ly, i) => {
+        const isGrass = i % 2 === 0;
+        bctx.fillStyle = isGrass ? '#22c55e' : '#334155';
+        bctx.fillRect(0, ly, W, laneHeight);
+
+        if (!isGrass) {
+          bctx.fillStyle = '#cbd5e1';
+          for (let j = 1; j < COLS; j++) {
+            bctx.fillRect(j * colWidth - 2, ly + 15, 4, laneHeight - 30);
+          }
+        }
+      });
     }
 
-    // Draw road lanes (alternating grass / road)
-    const laneYs = [horizonY + 40, horizonY + 140, horizonY + 240, horizonY + 340, horizonY + 440, horizonY + 540];
-    laneYs.forEach((ly, i) => {
-      const isGrass = i % 2 === 0;
-      if (isGrass) {
-        ctx.fillStyle = '#22c55e';
-      } else {
-        ctx.fillStyle = '#334155';
-      }
-      ctx.fillRect(0, ly, W, laneHeight);
-
-      // Road lane markings
-      if (!isGrass) {
-        ctx.fillStyle = '#cbd5e1';
-        for (let j = 1; j < COLS; j++) {
-          ctx.fillRect(j * colWidth - 2, ly + 15, 4, laneHeight - 30);
-        }
-      }
-    });
+    ctx.drawImage(ss.bgCanvas, 0, 0);
 
     // Scrolling ground at the bottom
     ss.groundOffset = (ss.groundOffset + 1.5) % colWidth;
@@ -213,7 +212,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       if (img) {
         const w = colWidth * 0.85;
         const h = w * (img.height / img.width);
-        ctx.drawImage(img, obs.x, obs.y + (laneHeight - h) / 2, w, h);
+        ctx.drawImage(img, obs.x | 0, (obs.y + (laneHeight - h) / 2) | 0, w, h);
       }
     });
 
@@ -224,7 +223,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       const cy = H - laneHeight * 1.5 + bobY;
       const w = colWidth * 0.8;
       const h = w * (s.images.player.height / s.images.player.width);
-      ctx.drawImage(s.images.player, cx - w / 2, cy - h / 2, w, h);
+      ctx.drawImage(s.images.player, (cx - w / 2) | 0, (cy - h / 2) | 0, w, h);
     }
   };
 
@@ -371,10 +370,12 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     const s = stateRef.current;
     ctx.fillStyle = '#skyBlue';
     // Draw sky gradient
-    let grd = ctx.createLinearGradient(0, 0, 0, horizonY);
-    grd.addColorStop(0, '#0f172a');
-    grd.addColorStop(1, '#87CEEB');
-    ctx.fillStyle = grd;
+    if (!s.pubSkyGradient) {
+      s.pubSkyGradient = ctx.createLinearGradient(0, 0, 0, horizonY);
+      s.pubSkyGradient.addColorStop(0, '#0f172a');
+      s.pubSkyGradient.addColorStop(1, '#87CEEB');
+    }
+    ctx.fillStyle = s.pubSkyGradient;
     ctx.fillRect(0, 0, W, horizonY);
 
     let progress = s.score / 1000;
@@ -473,7 +474,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
           // Scale image to fit lane
           let w = colWidth * 0.9;
           let h = w * (img.height / img.width);
-          ctx.drawImage(img, cx - w/2, cy - h/2, w, h);
+          ctx.drawImage(img, (cx - w/2) | 0, (cy - h/2) | 0, w, h);
         }
       }
     });
@@ -485,7 +486,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
        let cy = H - laneHeight * 2 + laneHeight / 2;
        let w = colWidth * 0.7;
        let h = w * (s.images.player.height / s.images.player.width);
-       ctx.drawImage(s.images.player, cx - w/2, cy - h/2, w, h);
+       ctx.drawImage(s.images.player, (cx - w/2) | 0, (cy - h/2) | 0, w, h);
     }
 
     // --- Overlay UI (Lives, Progress Bar, Player/High Score, Distractions) ---
@@ -496,13 +497,15 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       // Top Left: Lives & All-Time High Score
       ctx.font = '24px sans-serif';
       // Max width computation for lives and high score title
-      let maxLivesText = 'Lives: 🍺🍺🍺🍺🍺';
-      let allText = `All-Time High: ${highScore}`;
-      let leftBoxWidth = Math.max(ctx.measureText(maxLivesText).width, ctx.measureText(allText).width) + 20;
+      if (!s.leftBoxWidth) {
+        let maxLivesText = 'Lives: 🍺🍺🍺🍺🍺';
+        let allText = `All-Time High: ${highScore}`;
+        s.leftBoxWidth = Math.max(ctx.measureText(maxLivesText).width, ctx.measureText(allText).width) + 20;
+      }
       
       let livesText = 'Lives: ' + '🍺'.repeat(s.lives);
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      ctx.fillRect(8, 8, leftBoxWidth, 64);
+      ctx.fillRect(8, 8, s.leftBoxWidth, 64);
       
       ctx.fillStyle = 'white';
       ctx.fillText(livesText, 14, 12);
@@ -513,11 +516,11 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       // Top Right: Player Name, Personal Best & Current Score
       ctx.textAlign = 'right';
       ctx.font = 'bold 20px sans-serif';
-      let topBoxWidth = Math.max(
-          ctx.measureText(playerName || 'Player').width, 
-          ctx.measureText(`Score: ${s.score}`).width,
-          ctx.measureText(`PB: ${personalHighScore || 0}`).width
-      ) + 20;
+      if (!s.topBoxWidthName) {
+         s.topBoxWidthName = ctx.measureText(playerName || 'Player').width;
+         s.topBoxWidthPB = ctx.measureText(`PB: ${personalHighScore || 0}`).width;
+      }
+      let topBoxWidth = Math.max(s.topBoxWidthName, ctx.measureText(`Score: ${s.score}`).width, s.topBoxWidthPB) + 20;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.fillRect(W - topBoxWidth - 10, 8, topBoxWidth, 76);
       
