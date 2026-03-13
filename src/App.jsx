@@ -264,11 +264,13 @@ function App() {
 
       {gameState === 'GAMEOVER' && (
         <div className="screen">
-          <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #ef4444, #7f1d1d)'}}>SPLAT!</h1>
-          <h2 className="subtitle">You got wiped out.</h2>
-          <p style={{color: '#f8fafc', fontSize: '1.5rem', fontWeight: 'bold'}}>Steps: {score}</p>
-          <Scoreboard scores={topScores} />
-          <div className="gameover-buttons">
+          <div className="screen-scroll-content">
+            <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #ef4444, #7f1d1d)'}}>SPLAT!</h1>
+            <h2 className="subtitle">You got wiped out.</h2>
+            <p style={{color: '#f8fafc', fontSize: '1.5rem', fontWeight: 'bold'}}>Steps: {score}</p>
+            <Scoreboard scores={topScores} />
+          </div>
+          <div className="screen-sticky-buttons">
             <button className="btn" onClick={startGame}>Try Again</button>
             <button className="menu-btn" onClick={goToMainMenu}>🏠 Main Menu</button>
           </div>
@@ -277,12 +279,14 @@ function App() {
 
       {gameState === 'WIN' && (
         <div className="screen">
-          <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #f59e0b, #fbbf24)'}}>🏆 THE BOSS 🏆</h1>
-          <h2 className="subtitle">Welcome to The Coomera Lodge!</h2>
-          <p style={{fontSize: '2.5rem', fontWeight: 900, color: '#fcd34d', margin: '1rem 0'}}>Time: {finalTime.toFixed(2)}s</p>
-          <p>You survived 1000 steps and are now the official Owner of the Pub.</p>
-          <Scoreboard scores={topScores} />
-          <div className="gameover-buttons">
+          <div className="screen-scroll-content">
+            <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #f59e0b, #fbbf24)'}}>🏆 THE BOSS 🏆</h1>
+            <h2 className="subtitle">Welcome to The Coomera Lodge!</h2>
+            <p style={{fontSize: '2.5rem', fontWeight: 900, color: '#fcd34d', margin: '1rem 0'}}>Time: {finalTime.toFixed(2)}s</p>
+            <p>You survived 1000 steps and are now the official Owner of the Pub.</p>
+            <Scoreboard scores={topScores} />
+          </div>
+          <div className="screen-sticky-buttons">
             <button className="btn" onClick={startGame}>Defend Your Title</button>
             <button className="menu-btn" onClick={goToMainMenu}>🏠 Main Menu</button>
           </div>
