@@ -35,12 +35,16 @@ function App() {
   const [passwordError, setPasswordError] = useState('');
   const [leaderboardUnlocked, setLeaderboardUnlocked] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [showSuggestionForm, setShowSuggestionForm] = useState(false);
+  const [suggestionText, setSuggestionText] = useState('');
+  const [suggestionStatus, setSuggestionStatus] = useState('');
   const { deviceId, playerName, setPlayerName, isReturningPlayer } = useDeviceIdentity();
   const synthRef = useRef(null);
 
   const topScores = useQuery(api.scores.getTopScores);
   const personalHighScore = useQuery(api.scores.getPlayerTopScore, { deviceId }) || 0;
   const submitScore = useMutation(api.scores.submitScore);
+  const submitSuggestion = useMutation(api.scores.submitSuggestion);
   const updateScore = useMutation(api.scores.updateScore);
   const deleteScore = useMutation(api.scores.deleteScore);
 
@@ -146,6 +150,33 @@ function App() {
     }
   }, [leaderboardPassword]);
 
+  const handleSuggestionSubmit = async () => {
+    const trimmedName = playerName.trim();
+    const trimmedSuggestion = suggestionText.trim();
+
+    if (!trimmedName) {
+      setSuggestionStatus('Add your name before sending a suggestion.');
+      return;
+    }
+
+    if (!trimmedSuggestion) {
+      setSuggestionStatus('Suggestion cannot be empty.');
+      return;
+    }
+
+    try {
+      await submitSuggestion({
+        deviceId,
+        playerName: trimmedName,
+        message: trimmedSuggestion,
+      });
+      setSuggestionText('');
+      setSuggestionStatus('Thanks legend! Suggestion sent 🍻');
+    } catch {
+      setSuggestionStatus('Could not send suggestion right now. Try again soon.');
+    }
+  };
+
   return (
     <div className="app-container">
       {gameState === 'PLAY' && (
@@ -198,6 +229,34 @@ function App() {
             <button className="btn" onClick={startGame} disabled={!playerName.trim()} style={{marginBottom: '1rem'}}>
               TAP TO PLAY
             </button>
+
+            <button
+              className="settings-toggle-btn suggestions-toggle-btn"
+              onClick={() => {
+                setShowSuggestionForm((prev) => !prev);
+                setSuggestionStatus('');
+              }}
+            >
+              💡 Suggestions
+            </button>
+
+            {showSuggestionForm && (
+              <div className="suggestion-panel">
+                <p className="suggestion-title">Got an idea to improve Pub Run?</p>
+                <textarea
+                  className="suggestion-textarea"
+                  placeholder="Drop your suggestion here..."
+                  value={suggestionText}
+                  onChange={(e) => setSuggestionText(e.target.value)}
+                  maxLength={1200}
+                  rows={7}
+                />
+                <button className="menu-btn" onClick={handleSuggestionSubmit}>
+                  Send Suggestion
+                </button>
+                {suggestionStatus && <p className="suggestion-status">{suggestionStatus}</p>}
+              </div>
+            )}
 
             <div className="home-leaderboard-section">
               <Scoreboard 
