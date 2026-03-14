@@ -6,6 +6,7 @@ import CanvasGame from './CanvasGame';
 import SoundSynth from './SoundSynth';
 import Scoreboard from './Scoreboard';
 import useDeviceIdentity from './useDeviceIdentity';
+import HowToPlayCard from './HowToPlayCard';
 
 const WRONG_PASSWORD_MSGS = [
   "Nice try, ya drongo! 🦘",
@@ -211,6 +212,8 @@ function App() {
             <button className="btn" onClick={startGame} disabled={!playerName.trim()} style={{marginBottom: '1rem'}}>
               TAP TO PLAY
             </button>
+
+            <HowToPlayCard />
 
             <div className="home-leaderboard-section">
               <Scoreboard 
