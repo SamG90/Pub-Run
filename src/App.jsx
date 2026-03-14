@@ -6,6 +6,7 @@ import CanvasGame from './CanvasGame';
 import SoundSynth from './SoundSynth';
 import Scoreboard from './Scoreboard';
 import useDeviceIdentity from './useDeviceIdentity';
+import { GAME_RULES, OBSTACLE_LABELS } from './gameRules';
 
 const WRONG_PASSWORD_MSGS = [
   "Nice try, ya drongo! 🦘",
@@ -85,7 +86,7 @@ function App() {
       await submitScore({
         deviceId,
         playerName: playerName.trim(),
-        score: 1000,
+        score: GAME_RULES.targetSteps,
         gameResult: 'win',
         runTime: timeTakenSeconds,
       });
@@ -105,7 +106,7 @@ function App() {
     if (newScore === 100) msg = '🍺 YOU EARNED A BEER!';
     else if (newScore === 200) msg = '🍻 YOU EARNED A PINT!';
     else if (newScore === 300) msg = '🥃 YOU EARNED A SPIRIT!';
-    else if (newScore % 100 === 0 && newScore > 300 && newScore < 1000) msg = `🔥 ${newScore} STEPS!`;
+    else if (newScore % 100 === 0 && newScore > 300 && newScore < GAME_RULES.targetSteps) msg = `🔥 ${newScore} STEPS!`;
 
     if (msg) {
       if (synthRef.current) synthRef.current.milestone();
@@ -201,7 +202,7 @@ function App() {
 
             <div className="instruction-card">
               <h2>📘 How to Play</h2>
-              <p><strong>Target:</strong> Reach <strong>1000 steps</strong> to arrive at <strong>The Coomera Lodge</strong> and win.</p>
+              <p><strong>Target:</strong> Reach <strong>{GAME_RULES.targetSteps} steps</strong> to arrive at <strong>The Coomera Lodge</strong> and win.</p>
 
               <h3>🎮 Controls</h3>
               <ul>
@@ -211,16 +212,16 @@ function App() {
               </ul>
 
               <h3>🚧 Obstacles (all current types)</h3>
-              <p>Car, Taxi, Ute, Kebab Stand, 7-Eleven, Bottle Shop, KFC, Burger Bar, Lawn Mower.</p>
+              <p>{OBSTACLE_LABELS.join(', ')}.</p>
 
               <h3>🍺 Lives, perks & milestones</h3>
               <ul>
-                <li><strong>Start:</strong> You begin with <strong>1 life</strong>.</li>
-                <li><strong>Life gain:</strong> Every <strong>50 steps</strong>, gain +1 life (max <strong>5</strong>).</li>
+                <li><strong>Start:</strong> You begin with <strong>{GAME_RULES.startingLives} life</strong>.</li>
+                <li><strong>Life gain:</strong> Every <strong>{GAME_RULES.lifeGainEverySteps} steps</strong>, gain +1 life (max <strong>{GAME_RULES.maxLives}</strong>).</li>
                 <li><strong>Collision:</strong> If you have a life, you lose 1 and that obstacle is cleared.</li>
                 <li><strong>Game over:</strong> If you are on 0 lives, the next collision ends the run.</li>
                 <li><strong>Milestones:</strong> 100 = Beer, 200 = Pint, 300 = Spirit, then shoutouts every 100 up to 900.</li>
-                <li><strong>Pressure alerts:</strong> Warning/hype triggers when you are within 15 of the all-time high score.</li>
+                <li><strong>Pressure alerts:</strong> Warning/hype triggers when you are within {GAME_RULES.highScoreWarningDistance} of the all-time high score.</li>
               </ul>
             </div>
 
@@ -305,7 +306,7 @@ function App() {
           <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #f59e0b, #fbbf24)'}}>🏆 THE BOSS 🏆</h1>
           <h2 className="subtitle">Welcome to The Coomera Lodge!</h2>
           <p style={{fontSize: '2.5rem', fontWeight: 900, color: '#fcd34d', margin: '1rem 0'}}>Time: {finalTime.toFixed(2)}s</p>
-          <p>You survived 1000 steps and are now the official Owner of the Pub.</p>
+          <p>You survived {GAME_RULES.targetSteps} steps and are now the official Owner of the Pub.</p>
           <Scoreboard scores={topScores} />
           <div className="gameover-buttons">
             <button className="btn" onClick={startGame}>Defend Your Title</button>

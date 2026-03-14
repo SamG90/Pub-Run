@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
+import { GAME_RULES } from './gameRules';
 
 const ASSETS = {
   player: '/assets/player.svg',
@@ -44,7 +45,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     lanes: [],
     lastTime: 0,
     player: { col: 2 },
-    lives: 1, // Start with 1 life
+    lives: GAME_RULES.startingLives,
     images: {},
     loaded: false,
     animationId: null,
@@ -107,7 +108,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     s.score = 0;
     s.startTime = Date.now();
     s.player.col = Math.floor(COLS / 2);
-    s.lives = 1;
+    s.lives = GAME_RULES.startingLives;
     s.lanes = [];
     s.beerHitEndTime = 0;
     
@@ -280,24 +281,24 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     s.score++;
     
     // Gain a life every 50 steps
-    if (s.score > 0 && s.score % 50 === 0) {
-      if (s.lives < 5) s.lives++;
+    if (s.score > 0 && s.score % GAME_RULES.lifeGainEverySteps === 0) {
+      if (s.lives < GAME_RULES.maxLives) s.lives++;
     }
 
     // Check approaching life
-    if (s.score > 0 && s.score % 50 >= 45 && s.score % 50 < 50) {
+    if (s.score > 0 && s.score % GAME_RULES.lifeGainEverySteps >= GAME_RULES.lifeGainEverySteps - 5 && s.score % GAME_RULES.lifeGainEverySteps < GAME_RULES.lifeGainEverySteps) {
       if (onApproachingLife) onApproachingLife();
     }
 
     // Check approaching high score
     let distToHighScore = highScore - s.score;
-    if (distToHighScore > 0 && distToHighScore <= 15) {
+    if (distToHighScore > 0 && distToHighScore <= GAME_RULES.highScoreWarningDistance) {
       if (onApproachingHighScore) onApproachingHighScore();
     }
 
     onScoreUpdate(s.score);
     
-    if (s.score >= 1000) {
+    if (s.score >= GAME_RULES.targetSteps) {
       onWin((Date.now() - s.startTime) / 1000);
       return;
     }
@@ -378,7 +379,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     ctx.fillStyle = s.pubSkyGradient;
     ctx.fillRect(0, 0, W, horizonY);
 
-    let progress = s.score / 1000;
+    let progress = s.score / GAME_RULES.targetSteps;
     let scale = 0.4 + (progress * 1.6);
     
     ctx.save();
@@ -566,7 +567,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
       // Middle Screen Distraction when near high score
       let distToHighScore = highScore - s.score;
-      if (distToHighScore > 0 && distToHighScore <= 15 && s.score > 0) {
+      if (distToHighScore > 0 && distToHighScore <= GAME_RULES.highScoreWarningDistance && s.score > 0) {
          let time = performance.now();
          let glow = Math.sin(time / 150) * 0.5 + 0.5; // 0 to 1 oscillating
          let messages = ["DON'T F*** UP NOW!", "SO CLOSE!", "DON'T BOTTLE IT!", "NO PRESSURE!"];
