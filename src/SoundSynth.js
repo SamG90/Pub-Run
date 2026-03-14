@@ -101,6 +101,13 @@ export default class SoundSynth {
     this.crash(); // use existing crash noise for extra effect
   }
 
+  beerPickup() {
+    // Fast, bright pickup jingle inspired by classic platformers
+    this.playTone(783.99, 'square', 0.08, 0.08, 0.005, 0.06); // G5
+    setTimeout(() => this.playTone(987.77, 'square', 0.08, 0.08, 0.005, 0.06), 70); // B5
+    setTimeout(() => this.playTone(1174.66, 'square', 0.1, 0.09, 0.005, 0.08), 140); // D6
+  }
+
   milestone() {
     this.playTone(523.25, 'sine', 0.2, 0.1); 
     setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.1), 100); 
