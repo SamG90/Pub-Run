@@ -2,6 +2,7 @@
   position: relative;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   /* Cap the maximum size for desktop, but fill mobile completely */
   max-width: 500px;
   max-height: 800px;
@@ -9,6 +10,8 @@
   overflow: hidden;
   touch-action: none;
   box-shadow: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Add box-shadow and border radius only on larger screens where it doesn't take up the whole viewport */
@@ -81,12 +84,20 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   text-align: center;
   color: white;
   z-index: 10;
   padding: 1.5rem;
+  padding-top: 2rem;
   transition: opacity 0.3s ease;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.screen::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Chunky Retro Title (Flappy Bird style) ──────────── */
@@ -293,6 +304,35 @@ canvas {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* ── Screen layout: scrollable content + sticky buttons ── */
+.screen-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+  padding-bottom: 0.5rem;
+}
+
+.screen-scroll-content::-webkit-scrollbar {
+  display: none;
+}
+
+.screen-sticky-buttons {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  width: 100%;
+  background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.9) 20%);
 }
 
 /* ── Game Over / Win Buttons ───────────────────────────── */
