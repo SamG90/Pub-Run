@@ -201,24 +201,26 @@ function App() {
 
             <div className="instruction-card">
               <h2>📘 How to Play</h2>
-              <p><strong>Target:</strong> Reach <strong>1000 steps</strong> and make it to <strong>The Coomera Lodge</strong> to win.</p>
+              <p><strong>Target:</strong> Reach <strong>1000 steps</strong> to arrive at <strong>The Coomera Lodge</strong> and win.</p>
 
               <h3>🎮 Controls</h3>
               <ul>
-                <li><strong>Tap Middle:</strong> Move forward 1 step.</li>
-                <li><strong>Tap Left / Right:</strong> Change lanes to dodge danger.</li>
+                <li><strong>Tap middle third:</strong> Move forward and gain <strong>+1 step</strong>.</li>
+                <li><strong>Tap left / right third:</strong> Change lanes to dodge obstacles.</li>
+                <li><strong>Only middle taps increase score:</strong> Dodging does not add steps.</li>
               </ul>
 
-              <h3>🚧 Obstacles to dodge</h3>
+              <h3>🚧 Obstacles (all current types)</h3>
               <p>Car, Taxi, Ute, Kebab Stand, 7-Eleven, Bottle Shop, KFC, Burger Bar, Lawn Mower.</p>
 
-              <h3>🍺 Perks & milestones</h3>
+              <h3>🍺 Lives, perks & milestones</h3>
               <ul>
-                <li><strong>Start Lives:</strong> 1 life.</li>
-                <li><strong>Extra Lives:</strong> +1 life every <strong>50 steps</strong> (up to <strong>5</strong> total).</li>
-                <li><strong>Collision:</strong> A hit uses one life and clears that obstacle.</li>
-                <li><strong>Milestones:</strong> 100 = Beer, 200 = Pint, 300 = Spirit, then hype shoutouts every 100 up to 900.</li>
-                <li><strong>High Score Pressure:</strong> Warning messages appear when you are within 15 of the all-time high.</li>
+                <li><strong>Start:</strong> You begin with <strong>1 life</strong>.</li>
+                <li><strong>Life gain:</strong> Every <strong>50 steps</strong>, gain +1 life (max <strong>5</strong>).</li>
+                <li><strong>Collision:</strong> If you have a life, you lose 1 and that obstacle is cleared.</li>
+                <li><strong>Game over:</strong> If you are on 0 lives, the next collision ends the run.</li>
+                <li><strong>Milestones:</strong> 100 = Beer, 200 = Pint, 300 = Spirit, then shoutouts every 100 up to 900.</li>
+                <li><strong>Pressure alerts:</strong> Warning/hype triggers when you are within 15 of the all-time high score.</li>
               </ul>
             </div>
 
