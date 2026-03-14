@@ -169,3 +169,20 @@ export const getPlayerTopScore = query({
     return Math.max(...scores.map(s => s.score));
   },
 });
+
+export const getSuggestionsForReview = query({
+  args: {},
+  handler: async (ctx) => {
+    const suggestions = await ctx.db
+      .query("suggestions")
+      .order("desc")
+      .take(50);
+
+    return suggestions.map((suggestion) => ({
+      _id: suggestion._id,
+      playerName: suggestion.playerName,
+      message: suggestion.message,
+      createdAt: suggestion.createdAt,
+    }));
+  },
+});

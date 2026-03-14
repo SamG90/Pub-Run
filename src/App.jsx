@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import './App.css';
@@ -35,16 +35,16 @@ function App() {
   const [passwordError, setPasswordError] = useState('');
   const [leaderboardUnlocked, setLeaderboardUnlocked] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-  const [showSuggestionForm, setShowSuggestionForm] = useState(false);
-  const [suggestionText, setSuggestionText] = useState('');
-  const [suggestionStatus, setSuggestionStatus] = useState('');
   const { deviceId, playerName, setPlayerName, isReturningPlayer } = useDeviceIdentity();
   const synthRef = useRef(null);
 
   const topScores = useQuery(api.scores.getTopScores);
   const personalHighScore = useQuery(api.scores.getPlayerTopScore, { deviceId }) || 0;
   const submitScore = useMutation(api.scores.submitScore);
-  const submitSuggestion = useMutation(api.scores.submitSuggestion);
+  const suggestionsForReview = useQuery(
+    api.scores.getSuggestionsForReview,
+    leaderboardUnlocked ? {} : 'skip'
+  );
   const updateScore = useMutation(api.scores.updateScore);
   const deleteScore = useMutation(api.scores.deleteScore);
 
@@ -150,32 +150,14 @@ function App() {
     }
   }, [leaderboardPassword]);
 
-  const handleSuggestionSubmit = async () => {
-    const trimmedName = playerName.trim();
-    const trimmedSuggestion = suggestionText.trim();
+  const formattedSuggestions = useMemo(() => {
+    if (!suggestionsForReview) return null;
 
-    if (!trimmedName) {
-      setSuggestionStatus('Add your name before sending a suggestion.');
-      return;
-    }
-
-    if (!trimmedSuggestion) {
-      setSuggestionStatus('Suggestion cannot be empty.');
-      return;
-    }
-
-    try {
-      await submitSuggestion({
-        deviceId,
-        playerName: trimmedName,
-        message: trimmedSuggestion,
-      });
-      setSuggestionText('');
-      setSuggestionStatus('Thanks legend! Suggestion sent 🍻');
-    } catch {
-      setSuggestionStatus('Could not send suggestion right now. Try again soon.');
-    }
-  };
+    return suggestionsForReview.map((suggestion) => ({
+      ...suggestion,
+      createdAtLabel: new Date(suggestion.createdAt).toLocaleString(),
+    }));
+  }, [suggestionsForReview]);
 
   return (
     <div className="app-container">
@@ -230,34 +212,6 @@ function App() {
               TAP TO PLAY
             </button>
 
-            <button
-              className="settings-toggle-btn suggestions-toggle-btn"
-              onClick={() => {
-                setShowSuggestionForm((prev) => !prev);
-                setSuggestionStatus('');
-              }}
-            >
-              💡 Suggestions
-            </button>
-
-            {showSuggestionForm && (
-              <div className="suggestion-panel">
-                <p className="suggestion-title">Got an idea to improve Pub Run?</p>
-                <textarea
-                  className="suggestion-textarea"
-                  placeholder="Drop your suggestion here..."
-                  value={suggestionText}
-                  onChange={(e) => setSuggestionText(e.target.value)}
-                  maxLength={1200}
-                  rows={7}
-                />
-                <button className="menu-btn" onClick={handleSuggestionSubmit}>
-                  Send Suggestion
-                </button>
-                {suggestionStatus && <p className="suggestion-status">{suggestionStatus}</p>}
-              </div>
-            )}
-
             <div className="home-leaderboard-section">
               <Scoreboard 
                 scores={topScores} 
@@ -295,7 +249,7 @@ function App() {
                     setLeaderboardPassword('');
                   }}>Cancel</button>
                   {passwordError && (
-                    <p className="password-error" key={passwordError + Date.now()}>
+                    <p className="password-error" key={passwordError}>
                       {passwordError}
                     </p>
                   )}
@@ -303,9 +257,31 @@ function App() {
               )}
               
               {leaderboardUnlocked && (
-                <button className="settings-toggle-btn" onClick={() => setLeaderboardUnlocked(false)}>
-                  🔒 Lock Settings
-                </button>
+                <>
+                  <div className="admin-suggestions-panel">
+                    <h3>💡 Suggestions for review</h3>
+                    {!formattedSuggestions ? (
+                      <p className="admin-suggestion-empty">Loading suggestions…</p>
+                    ) : formattedSuggestions.length === 0 ? (
+                      <p className="admin-suggestion-empty">No suggestions submitted yet.</p>
+                    ) : (
+                      <ul className="admin-suggestions-list">
+                        {formattedSuggestions.map((suggestion) => (
+                          <li className="admin-suggestion-item" key={suggestion._id}>
+                            <p className="admin-suggestion-meta">
+                              <strong>{suggestion.playerName}</strong> · {suggestion.createdAtLabel}
+                            </p>
+                            <p className="admin-suggestion-message">{suggestion.message}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <button className="settings-toggle-btn" onClick={() => setLeaderboardUnlocked(false)}>
+                    🔒 Lock Settings
+                  </button>
+                </>
               )}
             </div>
 
