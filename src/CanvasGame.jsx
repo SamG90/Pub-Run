@@ -36,7 +36,7 @@ const horizonY = H * 0.25;
 const BEER_PICKUP_SPAWN_CHANCE = 0.03;
 const OFF_CENTRE_COLS = [0, 1, 3, 4];
 
-const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit, onBeerPickup, onApproachingHighScore, onApproachingLife }) => {
+const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit, onBeerPickup = null, onApproachingHighScore, onApproachingLife }) => {
   const canvasRef = useRef(null);
   const [assetsLoaded, setAssetsLoaded] = React.useState(false);
 

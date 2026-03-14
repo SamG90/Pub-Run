@@ -97,7 +97,9 @@ function App() {
   };
 
   const handleBeerPickup = () => {
-    if (synthRef.current) synthRef.current.beerPickup();
+    if (synthRef.current && typeof synthRef.current.beerPickup === 'function') {
+      synthRef.current.beerPickup();
+    }
   };
 
   const handleScoreUpdate = (newScore) => {
