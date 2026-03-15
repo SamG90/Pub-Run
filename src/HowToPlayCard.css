@@ -1,12 +1,11 @@
 .instruction-card {
   width: 100%;
-  max-width: 420px;
-  margin: 0.5rem 0 0.8rem;
-  padding: 1rem 1.1rem;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  max-width: 440px;
+  margin: 0 auto 1.5rem;
+  padding: 1.2rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
   text-align: left;
 }
 

@@ -37,6 +37,7 @@ function App() {
   const [passwordError, setPasswordError] = useState('');
   const [leaderboardUnlocked, setLeaderboardUnlocked] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [startTab, setStartTab] = useState('rules'); // rules, scores, setup
   const { deviceId, playerName, setPlayerName, isReturningPlayer } = useDeviceIdentity();
   const synthRef = useRef(null);
 
@@ -193,116 +194,148 @@ function App() {
       {gameState === 'START' && (
         <div className="screen start-screen">
           <div className="start-screen-content">
-            <h1 className="title-flappy">PUB RUN</h1>
-            <p className="start-tagline">
-              Dodge hatchbacks, servos &amp; snag stands to reach <strong>The Coomera Lodge</strong> 🍺
-            </p>
-            <div className="name-input-row">
-              <input
-                className="name-input"
-                type="text"
-                placeholder="Enter ya name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                maxLength={20}
-                readOnly={isReturningPlayer && nameLocked}
-                onKeyDown={(e) => e.key === 'Enter' && startGame()}
-              />
-              {isReturningPlayer && nameLocked && (
-                <button
-                  className="change-name-btn"
-                  onClick={() => setNameLocked(false)}
-                >
-                  ✏️
-                </button>
-              )}
+            <div className="start-header">
+              <h1 className="title-flappy">PUB RUN</h1>
+              <p className="start-tagline">
+                Dodge hatchbacks, servos &amp; snag stands to reach <strong>The Coomera Lodge</strong> 🍺
+              </p>
             </div>
-            <button className="btn" onClick={startGame} disabled={!playerName.trim()} style={{marginBottom: '1rem'}}>
-              TAP TO PLAY
-            </button>
+            <div className="start-tabs">
+              <button 
+                className={`tab-btn ${startTab === 'rules' ? 'active' : ''}`}
+                onClick={() => setStartTab('rules')}
+              >
+                📖 RULES
+              </button>
+              <button 
+                className={`tab-btn ${startTab === 'scores' ? 'active' : ''}`}
+                onClick={() => setStartTab('scores')}
+              >
+                🏆 SCORES
+              </button>
+              <button 
+                className={`tab-btn ${startTab === 'setup' ? 'active' : ''}`}
+                onClick={() => setStartTab('setup')}
+              >
+                ⚙️ SETUP
+              </button>
+            </div>
 
-            <HowToPlayCard />
-
-            <div className="home-leaderboard-section">
-              <Scoreboard 
-                scores={topScores} 
-                isAdmin={leaderboardUnlocked} 
-                onUpdateScore={updateScore} 
-                onDeleteScore={deleteScore} 
-              />
-
-              {!leaderboardUnlocked && !showPasswordPrompt && (
-                <button className="settings-toggle-btn" onClick={() => setShowPasswordPrompt(true)}>
-                  ⚙️ Admin Settings
-                </button>
+            <div className="tab-content-area">
+              {startTab === 'rules' && <HowToPlayCard />}
+              
+              {startTab === 'scores' && (
+                <div className="home-leaderboard-section">
+                  <Scoreboard 
+                    scores={topScores} 
+                    isAdmin={leaderboardUnlocked} 
+                    onUpdateScore={updateScore} 
+                    onDeleteScore={deleteScore} 
+                  />
+                </div>
               )}
 
-              {showPasswordPrompt && !leaderboardUnlocked && (
-                <div className="password-gate home-admin-gate">
-                  <p className="password-prompt">🔒 Admin Access</p>
-                  <div className="password-input-row">
-                    <input
-                      className="password-input"
-                      type="password"
-                      placeholder="Password"
-                      value={leaderboardPassword}
-                      onChange={(e) => setLeaderboardPassword(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-                      autoFocus
-                    />
-                    <button className="password-submit-btn" onClick={handlePasswordSubmit}>
-                      🍺
+              {startTab === 'setup' && (
+                <div className="home-leaderboard-section">
+                  {!leaderboardUnlocked && !showPasswordPrompt && (
+                    <button className="settings-toggle-btn" onClick={() => setShowPasswordPrompt(true)}>
+                      ⚙️ Admin Settings
                     </button>
-                  </div>
-                  <button className="password-cancel-btn" onClick={() => {
-                    setShowPasswordPrompt(false);
-                    setPasswordError('');
-                    setLeaderboardPassword('');
-                  }}>Cancel</button>
-                  {passwordError && (
-                    <p className="password-error" key={passwordError}>
-                      {passwordError}
-                    </p>
+                  )}
+
+                  {showPasswordPrompt && !leaderboardUnlocked && (
+                    <div className="password-gate home-admin-gate">
+                      <p className="password-prompt">🔒 Admin Access</p>
+                      <div className="password-input-row">
+                        <input
+                          className="password-input"
+                          type="password"
+                          placeholder="Password"
+                          value={leaderboardPassword}
+                          onChange={(e) => setLeaderboardPassword(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+                          autoFocus
+                        />
+                        <button className="password-submit-btn" onClick={handlePasswordSubmit}>
+                          🍺
+                        </button>
+                      </div>
+                      <button className="password-cancel-btn" onClick={() => {
+                        setShowPasswordPrompt(false);
+                        setPasswordError('');
+                        setLeaderboardPassword('');
+                      }}>Cancel</button>
+                      {passwordError && (
+                        <p className="password-error" key={passwordError}>
+                          {passwordError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {leaderboardUnlocked && (
+                    <>
+                      <div className="admin-suggestions-panel">
+                        <h3>💡 Suggestions for review</h3>
+                        {!formattedSuggestions ? (
+                          <p className="admin-suggestion-empty">Loading suggestions…</p>
+                        ) : formattedSuggestions.length === 0 ? (
+                          <p className="admin-suggestion-empty">No suggestions submitted yet.</p>
+                        ) : (
+                          <ul className="admin-suggestions-list">
+                            {formattedSuggestions.map((suggestion) => (
+                              <li className="admin-suggestion-item" key={suggestion._id}>
+                                <p className="admin-suggestion-meta">
+                                  <strong>{suggestion.playerName}</strong> · {suggestion.createdAtLabel}
+                                </p>
+                                <p className="admin-suggestion-message">{suggestion.message}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      <button className="settings-toggle-btn" onClick={() => setLeaderboardUnlocked(false)}>
+                        🔒 Lock Settings
+                      </button>
+                    </>
                   )}
                 </div>
               )}
-              
-              {leaderboardUnlocked && (
-                <>
-                  <div className="admin-suggestions-panel">
-                    <h3>💡 Suggestions for review</h3>
-                    {!formattedSuggestions ? (
-                      <p className="admin-suggestion-empty">Loading suggestions…</p>
-                    ) : formattedSuggestions.length === 0 ? (
-                      <p className="admin-suggestion-empty">No suggestions submitted yet.</p>
-                    ) : (
-                      <ul className="admin-suggestions-list">
-                        {formattedSuggestions.map((suggestion) => (
-                          <li className="admin-suggestion-item" key={suggestion._id}>
-                            <p className="admin-suggestion-meta">
-                              <strong>{suggestion.playerName}</strong> · {suggestion.createdAtLabel}
-                            </p>
-                            <p className="admin-suggestion-message">{suggestion.message}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  <button className="settings-toggle-btn" onClick={() => setLeaderboardUnlocked(false)}>
-                    🔒 Lock Settings
-                  </button>
-                </>
-              )}
             </div>
 
-            <p className="controls-hint">
-              <strong>Controls:</strong> Tap MIDDLE to step · LEFT/RIGHT to dodge
-            </p>
+            <div className="start-screen-footer">
+              <div className="name-input-row">
+                <input
+                  className="name-input"
+                  type="text"
+                  placeholder="Enter ya name"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  maxLength={20}
+                  readOnly={isReturningPlayer && nameLocked}
+                  onKeyDown={(e) => e.key === 'Enter' && startGame()}
+                />
+                {isReturningPlayer && nameLocked && (
+                  <button
+                    className="change-name-btn"
+                    onClick={() => setNameLocked(false)}
+                  >
+                    ✏️
+                  </button>
+                )}
+              </div>
+              <button className="btn" onClick={startGame} disabled={!playerName.trim()} style={{width: '240px'}}>
+                TAP TO PLAY
+              </button>
+              
+              <p className="controls-hint">
+                MIDDLE to step · SIDE to dodge
+              </p>
 
-            <div className="credits">
-              <p>Creative Consultant: <strong>Mr. Walker</strong></p>
-              <p>All of the hard work: <strong>Mr. Graham</strong></p>
+              <div className="credits">
+                <p>Creative Consultant: <strong>Mr. Walker</strong> / Hard work: <strong>Mr. Graham</strong></p>
+              </div>
             </div>
           </div>
         </div>
