@@ -340,6 +340,36 @@ p {
   50% { transform: scale(1.03); }
 }
 
+/* ── Difficulty Buttons ────────────────────────────────── */
+.difficulty-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.difficulty-btn {
+  width: 130px;
+  font-size: 16px;
+  padding: 10px 16px;
+}
+
+.difficulty-hard {
+  background: linear-gradient(180deg, #dc2626, #991b1b);
+  border-color: #7f1d1d;
+  box-shadow: 0 4px 0 #7f1d1d, 0 6px 12px rgba(0, 0, 0, 0.3);
+  animation: hardPulse 2.5s ease-in-out infinite;
+}
+
+.difficulty-hard:active {
+  box-shadow: 0 0px 0 #7f1d1d;
+}
+
+@keyframes hardPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 0 #7f1d1d, 0 0 10px rgba(220, 38, 38, 0.3); }
+  50% { transform: scale(1.03); box-shadow: 0 4px 0 #7f1d1d, 0 0 20px rgba(220, 38, 38, 0.5); }
+}
+
 .leaderboard-btn {
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.25);

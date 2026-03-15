@@ -1,4 +1,5 @@
 import React from 'react';
+import { getTierName } from './gameRules';
 import './Scoreboard.css';
 
 const Scoreboard = ({ scores, isAdmin = false, onUpdateScore, onDeleteScore }) => {
@@ -44,6 +45,7 @@ const Scoreboard = ({ scores, isAdmin = false, onUpdateScore, onDeleteScore }) =
             {isAdmin && <th>Play Time</th>}
             <th>Result</th>
             <th>Score</th>
+            <th>Tier</th>
             {isAdmin && <th>Admin</th>}
           </tr>
         </thead>
@@ -52,13 +54,17 @@ const Scoreboard = ({ scores, isAdmin = false, onUpdateScore, onDeleteScore }) =
             const rank = i + 1;
             const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-other';
             const isEditing = editingId === entry._id;
+            const isHard = entry.difficulty === 'hard';
 
             return (
               <tr key={entry._id}>
                 <td>
                   <span className={`rank-badge ${rankClass}`}>{rank}</span>
                 </td>
-                <td>{entry.playerName}</td>
+                <td>
+                  {isHard && <span className="hard-badge" title="Hard Mode">💀</span>}
+                  {entry.playerName}
+                </td>
                 {isAdmin && <td className="admin-runs">{entry.totalRuns || 1}</td>}
                 {isAdmin && <td className="admin-time">{entry.totalPlayTime ? `${Math.floor(entry.totalPlayTime / 60)}m ${Math.floor(entry.totalPlayTime % 60)}s` : '0s'}</td>}
                 <td>
@@ -82,6 +88,9 @@ const Scoreboard = ({ scores, isAdmin = false, onUpdateScore, onDeleteScore }) =
                   ) : (
                     entry.score
                   )}
+                </td>
+                <td className="tier-cell">
+                  {getTierName(entry.score)}
                 </td>
                 {isAdmin && (
                   <td className="admin-actions">

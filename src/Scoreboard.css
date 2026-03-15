@@ -248,3 +248,14 @@
   outline: none;
 }
 
+.hard-badge {
+  margin-right: 2px;
+  font-size: 0.8rem;
+}
+
+.tier-cell {
+  font-size: 0.7rem;
+  color: #94a3b8 !important;
+  white-space: nowrap;
+}
+

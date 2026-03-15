@@ -8,6 +8,7 @@ export const submitScore = mutation({
     score: v.number(),
     gameResult: v.string(),
     runTime: v.number(),
+    difficulty: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // 1. Find or create player
@@ -42,6 +43,7 @@ export const submitScore = mutation({
       score: args.score,
       gameResult: args.gameResult,
       runTime: args.runTime,
+      difficulty: args.difficulty,
       createdAt: Date.now(),
       // Keep legacy fields populated to avoid breaking things unexpectedly
       deviceId: args.deviceId,
@@ -147,6 +149,7 @@ export const getTopScores = query({
         runTime: score.runTime ?? score.time ?? 0,
         createdAt: score.createdAt,
         playerName: player ? player.playerName : (score.playerName || "Unknown"),
+        difficulty: score.difficulty ?? "normal",
         totalRuns: player ? player.totalRuns : 1, // default to 1 if no player linked
         totalPlayTime: player ? player.totalPlayTime : 0,
       });

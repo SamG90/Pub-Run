@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { GAME_RULES } from './gameRules';
+import { GAME_RULES, DIFFICULTIES, CHAOS_TIERS, getChaosTier, getActiveMechanics } from './gameRules';
 
 const ASSETS = {
   player: '/assets/player.svg',
@@ -34,32 +34,33 @@ const H = 800;
 const colWidth = W / COLS;
 const laneHeight = colWidth;
 const horizonY = H * 0.25;
-const BEER_PICKUP_SPAWN_CHANCE = 0.03;
 const OFF_CENTRE_COLS = [0, 1, 3, 4];
 
-// FOV difficulty: zoom scale increases every 100 steps
-// At 0 steps: 1.0 (full view), at 900 steps: ~1.45 (very tight)
-const getFovZoom = (score) => {
+// Difficulty-aware scaling functions
+const getFovZoom = (score, diff) => {
   const level = Math.floor(score / 100);
-  return 1.0 + level * 0.05;
+  return 1.0 + level * diff.fovPerTier;
 };
 
-// Obstacle speed also ramps up slightly per 100-step tier
-const getSpeedMultiplier = (score) => {
+const getSpeedMultiplier = (score, diff) => {
   const level = Math.floor(score / 100);
-  return 1.0 + level * 0.06;
+  return 1.0 + level * diff.speedPerTier;
 };
 
-// Obstacle spawn chance increases with score
-const getSpawnChance = (score) => {
+const getSpawnChance = (score, diff) => {
   const level = Math.floor(score / 100);
-  // Starts at 0.65 (base), ramps up to ~0.85
-  return Math.min(0.85, 0.65 + level * 0.025);
+  return Math.min(diff.spawnRateCeiling, diff.spawnRateBase + level * diff.spawnRatePerTier);
 };
 
-const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit, onBeerPickup = null, onApproachingHighScore, onApproachingLife }) => {
+const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit, onBeerPickup = null, onApproachingHighScore, onApproachingLife, onTierChange }) => {
   const canvasRef = useRef(null);
   const [assetsLoaded, setAssetsLoaded] = React.useState(false);
+  const diffRef = useRef(DIFFICULTIES[difficulty] || DIFFICULTIES.normal);
+
+  // Keep diffRef in sync with prop
+  useEffect(() => {
+    diffRef.current = DIFFICULTIES[difficulty] || DIFFICULTIES.normal;
+  }, [difficulty]);
 
   const stateRef = useRef({
     score: 0,
@@ -67,11 +68,21 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     lanes: [],
     lastTime: 0,
     player: { col: 2 },
-    lives: GAME_RULES.startingLives,
+    lives: 3,
     images: {},
     loaded: false,
     animationId: null,
-    beerHitEndTime: 0
+    beerHitEndTime: 0,
+    // Chaos state
+    currentTier: 1,
+    drunkSwerveWarning: 0, // timestamp when warning started
+    drunkSwervePending: 0, // timestamp when swerve will happen
+    drunkSwerveDir: 0,
+    blackoutActive: false,
+    blackoutEnd: 0,
+    blackoutNext: 0, // next time a blackout can trigger
+    tierAnnouncementEnd: 0,
+    tierAnnouncementText: '',
   });
 
   // Separate state for animated start screen
@@ -109,39 +120,89 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
   }, []);
 
   const generateLane = (y, isSafe = false, score = 0) => {
-    const spawnChance = getSpawnChance(score);
+    const diff = diffRef.current;
+    const spawnChance = getSpawnChance(score, diff);
+    const mechanics = getActiveMechanics(score, diff);
     let hasObstacle = !isSafe && Math.random() < spawnChance;
     let obstacle = null;
     let direction = Math.random() > 0.5 ? 1 : -1;
     let beerPickupCol = null;
 
+    // Lane walls: occasionally block 3-4 lanes at once, leaving 1-2 gaps
+    if (mechanics.laneWalls && !isSafe && Math.random() < 0.12) {
+      return generateLaneWall(y, score);
+    }
+
     if (hasObstacle) {
       let type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
-      const speedMult = getSpeedMultiplier(score);
+      const speedMult = getSpeedMultiplier(score, diff);
+      const isMoving = mechanics.movingObstacles && Math.random() < 0.3;
       obstacle = {
         id: type.id,
         x: direction === 1 ? -colWidth : W + colWidth,
-        speed: type.speed * direction * (0.8 + Math.random() * 0.4) * speedMult
+        speed: type.speed * direction * (0.8 + Math.random() * 0.4) * speedMult,
+        // Moving obstacles drift between lanes
+        drifting: isMoving,
+        driftSpeed: isMoving ? (Math.random() * 1.5 + 0.5) * (Math.random() > 0.5 ? 1 : -1) : 0,
+        baseY: y, // track original y for drift bounds
       };
     }
 
-    // Rare off-centre free beer pickup to reward risky side moves on mobile.
-    // Only spawn on obstacle-free lanes so the pickup is actually collectible.
-    if (!isSafe && !hasObstacle && Math.random() < BEER_PICKUP_SPAWN_CHANCE) {
+    // Beer pickup
+    if (!isSafe && !hasObstacle && Math.random() < diff.beerPickupSpawnChance) {
       beerPickupCol = OFF_CENTRE_COLS[Math.floor(Math.random() * OFF_CENTRE_COLS.length)];
     }
 
     return { y, isSafe: isSafe || !hasObstacle, obstacle, beerPickupCol };
   };
 
+  // Generate a lane wall: 3-4 obstacles across, leaving 1-2 gaps
+  const generateLaneWall = (y, score) => {
+    const diff = diffRef.current;
+    const speedMult = getSpeedMultiplier(score, diff);
+    const gapCount = Math.random() < 0.6 ? 1 : 2;
+    const gaps = new Set();
+    while (gaps.size < gapCount) {
+      gaps.add(Math.floor(Math.random() * COLS));
+    }
+
+    // Create multiple obstacles in a "wall" formation
+    // We'll use a single obstacle but mark lanes as blocked
+    const direction = Math.random() > 0.5 ? 1 : -1;
+    const type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
+
+    return {
+      y,
+      isSafe: false,
+      obstacle: {
+        id: type.id,
+        x: direction === 1 ? -colWidth : W + colWidth,
+        speed: type.speed * direction * 0.9 * speedMult,
+        isWall: true,
+        gapCols: [...gaps],
+      },
+      beerPickupCol: null,
+    };
+  };
+
   const initGame = () => {
     const s = stateRef.current;
+    const diff = diffRef.current;
     s.score = 0;
     s.startTime = Date.now();
     s.player.col = Math.floor(COLS / 2);
-    s.lives = GAME_RULES.startingLives;
+    s.lives = diff.startingLives;
     s.lanes = [];
     s.beerHitEndTime = 0;
+    s.currentTier = 1;
+    s.drunkSwerveWarning = 0;
+    s.drunkSwervePending = 0;
+    s.drunkSwerveDir = 0;
+    s.blackoutActive = false;
+    s.blackoutEnd = 0;
+    s.blackoutNext = performance.now() + 5000;
+    s.tierAnnouncementEnd = 0;
+    s.tierAnnouncementText = '';
     // Clear cached measurements so they're recalculated
     s.leftBoxWidth = 0;
     s.topBoxWidthName = 0;
@@ -161,7 +222,6 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     if (ss.initialized) return;
     ss.initialized = true;
     ss.obstacles = [];
-    // Create 6 auto-scrolling obstacles at various heights
     const laneYs = [horizonY + 40, horizonY + 140, horizonY + 240, horizonY + 340, horizonY + 440, horizonY + 540];
     const obstacleKeys = ['car', 'kebab_stand', 'kfc', 'taxi', 'seven_eleven', 'ute'];
     laneYs.forEach((ly, i) => {
@@ -185,7 +245,6 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
     ctx.clearRect(0, 0, W, H);
 
-    // Sky gradient and static background caching
     if (!ss.bgCanvas) {
       ss.bgCanvas = document.createElement('canvas');
       ss.bgCanvas.width = W;
@@ -227,20 +286,16 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
     ctx.drawImage(ss.bgCanvas, 0, 0);
 
-    // Scrolling ground at the bottom
     ss.groundOffset = (ss.groundOffset + 1.5) % colWidth;
     ctx.fillStyle = '#15803d';
     ctx.fillRect(0, H - laneHeight, W, laneHeight);
-    // Ground stripes
     ctx.fillStyle = '#166534';
     for (let gx = -colWidth + ss.groundOffset; gx < W + colWidth; gx += colWidth) {
       ctx.fillRect(gx, H - laneHeight, colWidth / 2, laneHeight);
     }
 
-    // Draw auto-scrolling obstacles
     ss.obstacles.forEach((obs) => {
       obs.x += obs.speed;
-      // Wrap around
       if (obs.speed > 0 && obs.x > W + colWidth) obs.x = -colWidth;
       if (obs.speed < 0 && obs.x < -colWidth) obs.x = W + colWidth;
 
@@ -252,7 +307,6 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       }
     });
 
-    // Bobbing player character
     if (s.loaded && s.images.player) {
       const bobY = Math.sin(time / 300) * 8;
       const cx = W / 2;
@@ -276,13 +330,11 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     const ss = startScreenRef.current;
 
     if (gameState === 'PLAY') {
-      // Stop start screen loop
       if (ss.animId) { cancelAnimationFrame(ss.animId); ss.animId = null; }
       initGame();
       stateRef.current.lastTime = performance.now();
       loop(performance.now());
     } else if (gameState === 'START' || gameState === 'LEADERBOARD') {
-      // Stop game loop
       if (stateRef.current.animationId) {
         cancelAnimationFrame(stateRef.current.animationId);
         stateRef.current.animationId = null;
@@ -294,7 +346,6 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
         }
       }
     } else {
-      // GAMEOVER / WIN: stop everything, draw static
       if (ss.animId) { cancelAnimationFrame(ss.animId); ss.animId = null; }
       if (stateRef.current.animationId) {
         cancelAnimationFrame(stateRef.current.animationId);
@@ -313,22 +364,34 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
   const moveForward = () => {
     const s = stateRef.current;
+    const diff = diffRef.current;
     s.score++;
 
-    // Gain a life every 50 steps
-    if (s.score > 0 && s.score % GAME_RULES.lifeGainEverySteps === 0) {
-      if (s.lives < GAME_RULES.maxLives) s.lives++;
-    }
+    // Life gain from steps (Normal mode only)
+    if (diff.lifeGainFromSteps && diff.lifeGainEverySteps > 0) {
+      if (s.score > 0 && s.score % diff.lifeGainEverySteps === 0) {
+        if (s.lives < diff.maxLives) s.lives++;
+      }
 
-    // Check approaching life
-    if (s.score > 0 && s.score % GAME_RULES.lifeGainEverySteps >= GAME_RULES.lifeGainEverySteps - 5 && s.score % GAME_RULES.lifeGainEverySteps < GAME_RULES.lifeGainEverySteps) {
-      if (onApproachingLife) onApproachingLife();
+      // Check approaching life
+      if (s.score > 0 && s.score % diff.lifeGainEverySteps >= diff.lifeGainEverySteps - 5 && s.score % diff.lifeGainEverySteps < diff.lifeGainEverySteps) {
+        if (onApproachingLife) onApproachingLife();
+      }
     }
 
     // Check approaching high score
     let distToHighScore = highScore - s.score;
     if (distToHighScore > 0 && distToHighScore <= GAME_RULES.highScoreWarningDistance) {
       if (onApproachingHighScore) onApproachingHighScore();
+    }
+
+    // Check tier change
+    const newTier = getChaosTier(s.score);
+    if (newTier.tier !== s.currentTier) {
+      s.currentTier = newTier.tier;
+      s.tierAnnouncementText = newTier.name;
+      s.tierAnnouncementEnd = performance.now() + 3000;
+      if (onTierChange) onTierChange(newTier.tier, newTier.name);
     }
 
     onScoreUpdate(s.score);
@@ -371,11 +434,60 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
   const update = (dt) => {
     const s = stateRef.current;
+    const diff = diffRef.current;
+    const mechanics = getActiveMechanics(s.score, diff);
     let pX = s.player.col * colWidth + colWidth / 2;
+    const now = performance.now();
+
+    // ── Drunk Swerve Logic ──
+    if (mechanics.drunkSwerve) {
+      // Trigger a random swerve every 3-6 seconds
+      if (s.drunkSwervePending === 0 && s.drunkSwerveWarning === 0) {
+        if (Math.random() < 0.005) { // ~0.5% per frame check
+          s.drunkSwerveDir = Math.random() > 0.5 ? 1 : -1;
+          s.drunkSwerveWarning = now;
+          s.drunkSwervePending = now + 800; // swerve happens 800ms after warning
+        }
+      }
+      // Execute the swerve
+      if (s.drunkSwervePending > 0 && now >= s.drunkSwervePending) {
+        const newCol = s.player.col + s.drunkSwerveDir;
+        if (newCol >= 0 && newCol < COLS) {
+          s.player.col = newCol;
+        }
+        s.drunkSwervePending = 0;
+        s.drunkSwerveWarning = 0;
+        // Update pX after swerve
+        pX = s.player.col * colWidth + colWidth / 2;
+      }
+    }
+
+    // ── Blackout Logic ──
+    if (mechanics.blackouts) {
+      if (!s.blackoutActive && now >= s.blackoutNext) {
+        // Start a blackout
+        s.blackoutActive = true;
+        s.blackoutEnd = now + 1000 + Math.random() * 1000; // 1-2 seconds
+      }
+      if (s.blackoutActive && now >= s.blackoutEnd) {
+        s.blackoutActive = false;
+        s.blackoutNext = now + 3000 + Math.random() * 4000; // next blackout in 3-7 seconds
+      }
+    }
 
     s.lanes.forEach(lane => {
       if (lane.obstacle) {
         lane.obstacle.x += lane.obstacle.speed * (dt / 16);
+
+        // Moving obstacles: drift vertically
+        if (lane.obstacle.drifting) {
+          lane.y += lane.obstacle.driftSpeed * (dt / 16);
+          // Bounce within a range
+          if (Math.abs(lane.y - lane.obstacle.baseY) > laneHeight * 0.4) {
+            lane.obstacle.driftSpeed *= -1;
+          }
+        }
+
         if (lane.obstacle.speed > 0 && lane.obstacle.x > W + colWidth) lane.obstacle.x = -colWidth;
         if (lane.obstacle.speed < 0 && lane.obstacle.x < -colWidth) lane.obstacle.x = W + colWidth;
       }
@@ -383,23 +495,40 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       // Check collision
       if (Math.abs(lane.y - (H - laneHeight * 2)) < 5) {
         if (lane.beerPickupCol !== null && lane.beerPickupCol === s.player.col) {
-          const gainedLife = s.lives < 5;
+          const gainedLife = s.lives < diff.maxLives;
           if (gainedLife) s.lives++;
           lane.beerPickupCol = null;
           if (gainedLife && onBeerPickup) onBeerPickup();
         }
 
         if (lane.obstacle) {
-          let obsX = lane.obstacle.x + colWidth / 2;
-          if (Math.abs(pX - obsX) < colWidth * 0.40) {
-            // Collision logic with lives
-            if (s.lives > 0) {
-              s.lives--;
-              lane.obstacle = null; // Consume the obstacle
-              s.beerHitEndTime = performance.now() + 5000;
-              if (onBeerHit) onBeerHit();
-            } else {
-              onGameOver(s.score, (Date.now() - s.startTime) / 1000);
+          if (lane.obstacle.isWall) {
+            // Wall collision: check if player is NOT in a gap
+            const inGap = lane.obstacle.gapCols.includes(s.player.col);
+            // Only collide when obstacle is roughly centered on screen
+            const obsCenter = lane.obstacle.x + colWidth / 2;
+            const inRange = Math.abs(pX - obsCenter) < colWidth * 2;
+            if (!inGap && inRange) {
+              if (s.lives > 0) {
+                s.lives--;
+                lane.obstacle = null;
+                s.beerHitEndTime = now + 5000;
+                if (onBeerHit) onBeerHit();
+              } else {
+                onGameOver(s.score, (Date.now() - s.startTime) / 1000);
+              }
+            }
+          } else {
+            let obsX = lane.obstacle.x + colWidth / 2;
+            if (Math.abs(pX - obsX) < colWidth * 0.40) {
+              if (s.lives > 0) {
+                s.lives--;
+                lane.obstacle = null;
+                s.beerHitEndTime = now + 5000;
+                if (onBeerHit) onBeerHit();
+              } else {
+                onGameOver(s.score, (Date.now() - s.startTime) / 1000);
+              }
             }
           }
         }
@@ -410,7 +539,6 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
   const drawPub = (ctx) => {
     const s = stateRef.current;
     ctx.fillStyle = '#skyBlue';
-    // Draw sky gradient
     if (!s.pubSkyGradient) {
       s.pubSkyGradient = ctx.createLinearGradient(0, 0, 0, horizonY);
       s.pubSkyGradient.addColorStop(0, '#0f172a');
@@ -426,11 +554,9 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     ctx.translate(W / 2, horizonY);
     ctx.scale(scale, scale);
 
-    // River
     ctx.fillStyle = '#3b82f6';
     ctx.fillRect(-W, -35, W * 2, 35);
 
-    // Draw pub image at center — use the higher quality Loading image
     const pubImg = s.images.pub_loading || s.images.pub;
     if (pubImg) {
         const w = 450;
@@ -439,25 +565,20 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
         ctx.save();
 
         if (!s.pubMaskedCanvas) {
-            // Create a soft vignette/mask to blend the building edges
             const maskCanvas = document.createElement('canvas');
             maskCanvas.width = w;
             maskCanvas.height = h;
             const mctx = maskCanvas.getContext('2d');
 
             mctx.drawImage(pubImg, 0, 0, w, h);
-
-            // Use 'destination-in' to apply a soft alpha mask
             mctx.globalCompositeOperation = 'destination-in';
 
-            // Radial gradient for soft side edges
             const radGrd = mctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
             radGrd.addColorStop(0.7, 'rgba(0,0,0,1)');
             radGrd.addColorStop(1, 'rgba(0,0,0,0)');
             mctx.fillStyle = radGrd;
             mctx.fillRect(0, 0, w, h);
 
-            // Linear gradient for soft bottom/river blend
             const linGrd = mctx.createLinearGradient(0, 0, 0, h);
             linGrd.addColorStop(0.8, 'rgba(0,0,0,1)');
             linGrd.addColorStop(1, 'rgba(0,0,0,0)');
@@ -467,7 +588,6 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
             s.pubMaskedCanvas = maskCanvas;
         }
 
-        // Draw the masked result
         ctx.drawImage(s.pubMaskedCanvas, -w/2, -h + 20);
         ctx.restore();
     }
@@ -480,9 +600,11 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const s = stateRef.current;
+    const diff = diffRef.current;
+    const now = performance.now();
 
     if (gameState === 'PLAY') {
-      let isHit = performance.now() < s.beerHitEndTime;
+      let isHit = now < s.beerHitEndTime;
       if (isHit && !canvas.classList.contains('beer-hit-effect')) {
         canvas.classList.add('beer-hit-effect');
       } else if (!isHit && canvas.classList.contains('beer-hit-effect')) {
@@ -494,14 +616,13 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
     ctx.clearRect(0, 0, W, H);
 
-    // ── FOV zoom: scale the game world around the player ──
-    const fovZoom = gameState === 'PLAY' ? getFovZoom(s.score) : 1.0;
+    // ── FOV zoom ──
+    const fovZoom = gameState === 'PLAY' ? getFovZoom(s.score, diff) : 1.0;
     const playerCenterX = s.player.col * colWidth + colWidth / 2;
     const playerCenterY = H - laneHeight * 2 + laneHeight / 2;
 
     ctx.save();
     if (fovZoom > 1.0) {
-      // Zoom centered on the player position
       ctx.translate(playerCenterX, playerCenterY);
       ctx.scale(fovZoom, fovZoom);
       ctx.translate(-playerCenterX, -playerCenterY);
@@ -521,14 +642,29 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
       // Draw obstacle
       if (lane.obstacle) {
-        const img = s.images[lane.obstacle.id];
-        if (img) {
-          let cx = lane.obstacle.x + colWidth / 2;
-          let cy = lane.y + laneHeight / 2;
-          // Scale image to fit lane
-          let w = colWidth * 0.9;
-          let h = w * (img.height / img.width);
-          ctx.drawImage(img, (cx - w/2) | 0, (cy - h/2) | 0, w, h);
+        if (lane.obstacle.isWall) {
+          // Draw wall: obstacles in every lane except gaps
+          for (let c = 0; c < COLS; c++) {
+            if (lane.obstacle.gapCols.includes(c)) continue;
+            const img = s.images[lane.obstacle.id];
+            if (img) {
+              // Position each wall segment relative to the obstacle's moving x
+              const segX = lane.obstacle.x + (c - 2) * colWidth;
+              const cy = lane.y + laneHeight / 2;
+              const w = colWidth * 0.9;
+              const h = w * (img.height / img.width);
+              ctx.drawImage(img, (segX - w/2 + colWidth/2) | 0, (cy - h/2) | 0, w, h);
+            }
+          }
+        } else {
+          const img = s.images[lane.obstacle.id];
+          if (img) {
+            let cx = lane.obstacle.x + colWidth / 2;
+            let cy = lane.y + laneHeight / 2;
+            let w = colWidth * 0.9;
+            let h = w * (img.height / img.width);
+            ctx.drawImage(img, (cx - w/2) | 0, (cy - h/2) | 0, w, h);
+          }
         }
       }
 
@@ -536,7 +672,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
         const cx = lane.beerPickupCol * colWidth + colWidth / 2;
         const cy = lane.y + laneHeight / 2;
         const radius = colWidth * 0.14;
-        const bobOffset = Math.sin((performance.now() + lane.y * 5) / 180) * 3;
+        const bobOffset = Math.sin((now + lane.y * 5) / 180) * 3;
 
         ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
         ctx.beginPath();
@@ -569,12 +705,12 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
        ctx.drawImage(s.images.player, (cx - w/2) | 0, (cy - h/2) | 0, w, h);
     }
 
-    // Restore from FOV zoom before drawing UI overlay
+    // Restore from FOV zoom
     ctx.restore();
 
-    // ── Vignette overlay to sell the FOV tightening ──
+    // ── Vignette overlay ──
     if (gameState === 'PLAY' && fovZoom > 1.0) {
-      const intensity = Math.min((fovZoom - 1.0) / 0.5, 1.0); // 0 to 1 over the zoom range
+      const intensity = Math.min((fovZoom - 1.0) / 0.5, 1.0);
       const vignetteGrad = ctx.createRadialGradient(W/2, H/2, W * 0.25, W/2, H/2, W * 0.7);
       vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
       vignetteGrad.addColorStop(1, `rgba(0,0,0,${0.3 * intensity})`);
@@ -582,16 +718,47 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       ctx.fillRect(0, 0, W, H);
     }
 
-    // --- Overlay UI (Lives, Progress Bar, Player/High Score, Distractions) ---
+    // ── Blackout overlay ──
+    if (gameState === 'PLAY' && s.blackoutActive) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.92)';
+      ctx.fillRect(0, 0, W, H);
+      // Small circle of visibility around player
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      const grad = ctx.createRadialGradient(playerCenterX, playerCenterY, 0, playerCenterX, playerCenterY, colWidth * 1.2);
+      grad.addColorStop(0, 'rgba(0,0,0,0.6)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    // ── Drunk swerve warning flash ──
+    if (gameState === 'PLAY' && s.drunkSwerveWarning > 0 && now < s.drunkSwervePending) {
+      const flash = Math.sin(now / 80) * 0.5 + 0.5;
+      // Flash arrow showing swerve direction
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 40px sans-serif';
+      ctx.fillStyle = `rgba(255, 200, 0, ${0.5 + flash * 0.5})`;
+      const arrow = s.drunkSwerveDir < 0 ? '⬅️' : '➡️';
+      ctx.fillText(arrow, W / 2, H / 2 - 80);
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillStyle = `rgba(255, 200, 0, ${0.6 + flash * 0.4})`;
+      ctx.fillText('SWERVING!', W / 2, H / 2 - 45);
+      ctx.restore();
+    }
+
+    // --- Overlay UI ---
     if (gameState === 'PLAY') {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
 
       // Top Left: Lives & All-Time High Score
       ctx.font = '24px sans-serif';
-      // Max width computation for lives and high score title
       if (!s.leftBoxWidth) {
-        let maxLivesText = 'Lives: 🍺🍺🍺🍺🍺';
+        let maxLivesText = 'Lives: ' + '🍺'.repeat(diff.maxLives);
         let allText = `All-Time High: ${highScore}`;
         s.leftBoxWidth = Math.max(ctx.measureText(maxLivesText).width, ctx.measureText(allText).width) + 20;
       }
@@ -621,32 +788,28 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       ctx.fillText(playerName || 'Player', W - 20, 14);
 
       ctx.font = '16px sans-serif';
-      ctx.fillStyle = '#fef08a'; // subtle yellow for PB
+      ctx.fillStyle = '#fef08a';
       ctx.fillText(`PB: ${personalHighScore || 0}`, W - 20, 40);
 
-      ctx.fillStyle = '#22c55e'; // green for live score
+      ctx.fillStyle = '#22c55e';
       ctx.fillText(`Score: ${s.score}`, W - 20, 60);
 
       // Top Center: Progress Bar
       let currentLevel = Math.floor(s.score / 100) * 100;
       let nextLevel = currentLevel + 100;
       let progress = (s.score % 100) / 100;
-      let barWidth = 100; // Reduced to prevent overlap with left/right boxes
+      let barWidth = 100;
       let barHeight = 14;
       let barX = (W - barWidth) / 2;
       let barY = 16;
 
-      // Draw outer box for progress bar to ensure it doesn't overlap text
       ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
       ctx.fillRect(barX - 40, barY - 8, barWidth + 80, 32);
 
-      // Progress bar background
       ctx.fillStyle = '#334155';
       ctx.fillRect(barX, barY, barWidth, barHeight);
-      // Fill
       ctx.fillStyle = '#22c55e';
       ctx.fillRect(barX, barY, barWidth * progress, barHeight);
-      // Border
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.strokeRect(barX, barY, barWidth, barHeight);
@@ -657,7 +820,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       ctx.fillText(currentLevel.toString(), barX - 20, barY + 1);
       ctx.fillText(nextLevel.toString(), barX + barWidth + 20, barY + 1);
 
-      // FOV warning indicator at milestones
+      // FOV warning at milestones
       const level = Math.floor(s.score / 100);
       if (level > 0 && s.score % 100 < 15) {
         const fadeAlpha = 1 - (s.score % 100) / 15;
@@ -669,29 +832,61 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
         ctx.restore();
       }
 
+      // ── Tier Announcement ──
+      if (now < s.tierAnnouncementEnd) {
+        const elapsed = 3000 - (s.tierAnnouncementEnd - now);
+        const fadeIn = Math.min(elapsed / 300, 1);
+        const fadeOut = Math.min((s.tierAnnouncementEnd - now) / 500, 1);
+        const alpha = Math.min(fadeIn, fadeOut);
+        const pulse = 1 + Math.sin(elapsed / 150) * 0.05;
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.translate(W / 2, H * 0.35);
+        ctx.scale(pulse, pulse);
+
+        ctx.font = '900 28px Impact, sans-serif';
+        ctx.shadowColor = 'rgba(251, 191, 36, 0.8)';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = `rgba(251, 191, 36, ${alpha})`;
+        ctx.strokeStyle = `rgba(0, 0, 0, ${alpha})`;
+        ctx.lineWidth = 3;
+        ctx.strokeText(`⚡ ${s.tierAnnouncementText.toUpperCase()} ⚡`, 0, 0);
+        ctx.fillText(`⚡ ${s.tierAnnouncementText.toUpperCase()} ⚡`, 0, 0);
+
+        ctx.restore();
+      }
+
+      // Difficulty badge in-game
+      if (diff.id === 'hard') {
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+        ctx.fillText('💀 HARD MODE', W / 2, H - 12);
+        ctx.restore();
+      }
+
       // Middle Screen Distraction when near high score
       let distToHighScore = highScore - s.score;
       if (distToHighScore > 0 && distToHighScore <= GAME_RULES.highScoreWarningDistance && s.score > 0) {
-         let time = performance.now();
-         let glow = Math.sin(time / 150) * 0.5 + 0.5; // 0 to 1 oscillating
+         let glow = Math.sin(now / 150) * 0.5 + 0.5;
          let messages = ["DON'T F*** UP NOW!", "SO CLOSE!", "DON'T BOTTLE IT!", "NO PRESSURE!"];
-         // rotate message based on time (change every ~800ms)
-         let msgIndex = Math.floor(time / 800) % messages.length;
+         let msgIndex = Math.floor(now / 800) % messages.length;
          let msg = messages[msgIndex];
 
          ctx.save();
          ctx.translate(W / 2, H / 2 - 50);
-         let scale = 1 + glow * 0.2; // pulse size slightly
+         let scale = 1 + glow * 0.2;
          ctx.scale(scale, scale);
-         // Rotate slightly back and forth
-         ctx.rotate((Math.sin(time / 200) * 0.1));
+         ctx.rotate((Math.sin(now / 200) * 0.1));
 
          ctx.font = '900 36px Impact, sans-serif';
          ctx.textAlign = 'center';
          ctx.textBaseline = 'middle';
 
-         // Glow/shadow
-         ctx.shadowColor = 'rgba(239, 68, 68, 0.8)'; // red glow
+         ctx.shadowColor = 'rgba(239, 68, 68, 0.8)';
          ctx.shadowBlur = 20;
 
          ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + glow * 0.4})`;

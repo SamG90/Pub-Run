@@ -18,6 +18,7 @@ export default defineSchema({
     gameResult: v.string(), // "gameover" or "win"
     time: v.optional(v.number()), // legacy completion time
     runTime: v.optional(v.number()), // new completion/survival time in seconds
+    difficulty: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_score", ["score"])

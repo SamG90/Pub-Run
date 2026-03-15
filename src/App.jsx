@@ -4,9 +4,10 @@ import { api } from '../convex/_generated/api';
 import './App.css';
 import CanvasGame from './CanvasGame';
 import SoundSynth from './SoundSynth';
+import MusicPlayer from './MusicPlayer';
 import Scoreboard from './Scoreboard';
 import useDeviceIdentity from './useDeviceIdentity';
-import { GAME_RULES, OBSTACLE_LABELS } from './gameRules';
+import { GAME_RULES, DIFFICULTIES, TIER_MUSIC, START_MUSIC, GAMEOVER_SOUND, WIN_SOUND, getTierName } from './gameRules';
 import HowToPlayCard from './HowToPlayCard';
 
 const WRONG_PASSWORD_MSGS = [
@@ -28,6 +29,7 @@ const LEADERBOARD_PASSWORD = 'pubrun';
 
 function App() {
   const [gameState, setGameState] = useState('START'); // START, PLAY, GAMEOVER, WIN, LEADERBOARD
+  const [difficulty, setDifficulty] = useState('normal');
   const [score, setScore] = useState(0);
   const [milestone, setMilestone] = useState('');
   const [finalTime, setFinalTime] = useState(0);
@@ -40,6 +42,7 @@ function App() {
   const [startTab, setStartTab] = useState('rules'); // rules, scores, setup
   const { deviceId, playerName, setPlayerName, isReturningPlayer } = useDeviceIdentity();
   const synthRef = useRef(null);
+  const musicRef = useRef(null);
 
   const topScores = useQuery(api.scores.getTopScores);
   const personalHighScore = useQuery(api.scores.getPlayerTopScore, { deviceId }) || 0;
@@ -53,13 +56,32 @@ function App() {
 
   useEffect(() => {
     synthRef.current = new SoundSynth();
+    musicRef.current = new MusicPlayer();
   }, []);
 
-  const startGame = () => {
+  // Play start screen music when on START
+  useEffect(() => {
+    if (gameState === 'START' && musicRef.current) {
+      musicRef.current.init();
+      musicRef.current.playTrack(START_MUSIC, { loop: true, volume: 0.35 });
+    }
+  }, [gameState]);
+
+  const startGame = (selectedDifficulty) => {
     if (!playerName.trim()) return;
+    const diff = selectedDifficulty || difficulty;
+    setDifficulty(diff);
     if (synthRef.current) {
       synthRef.current.init();
       synthRef.current.enterGame();
+    }
+    if (musicRef.current) {
+      musicRef.current.init();
+      // Start with tier 1 music
+      const tier1Track = TIER_MUSIC[0];
+      if (tier1Track) {
+        musicRef.current.playTrack(tier1Track.track, { loop: true, volume: 0.4, crossfadeDuration: 1 });
+      }
     }
     setScore(0);
     setMilestone('');
@@ -69,6 +91,10 @@ function App() {
 
   const handleGameOver = async (finalScore, runTime) => {
     if (synthRef.current) synthRef.current.crash();
+    if (musicRef.current) {
+      musicRef.current.stop(0.3);
+      musicRef.current.playOneShot(GAMEOVER_SOUND, 0.5);
+    }
     setScore(finalScore);
     setGameState('GAMEOVER');
     if (playerName.trim() && !scoreSubmitted) {
@@ -79,12 +105,17 @@ function App() {
         score: finalScore,
         gameResult: 'gameover',
         runTime: runTime || 0,
+        difficulty,
       });
     }
   };
 
   const handleWin = async (timeTakenSeconds) => {
     if (synthRef.current) synthRef.current.win();
+    if (musicRef.current) {
+      musicRef.current.stop(0.3);
+      musicRef.current.playOneShot(WIN_SOUND, 0.6);
+    }
     setFinalTime(timeTakenSeconds);
     setGameState('WIN');
     if (playerName.trim() && !scoreSubmitted) {
@@ -95,6 +126,7 @@ function App() {
         score: GAME_RULES.targetSteps,
         gameResult: 'win',
         runTime: timeTakenSeconds,
+        difficulty,
       });
     }
   };
@@ -126,6 +158,16 @@ function App() {
       setTimeout(() => setMilestone(''), 2000);
     }
   };
+
+  const handleTierChange = useCallback((tierNum, tierName) => {
+    // Switch music to match the new tier
+    if (musicRef.current && tierNum >= 1 && tierNum <= TIER_MUSIC.length) {
+      const track = TIER_MUSIC[tierNum - 1];
+      if (track) {
+        musicRef.current.playTrack(track.track, { loop: true, volume: 0.4, crossfadeDuration: 2 });
+      }
+    }
+  }, []);
 
   const handleDodge = () => {
     if (synthRef.current) synthRef.current.dodge();
@@ -178,6 +220,7 @@ function App() {
 
       <CanvasGame
         gameState={gameState}
+        difficulty={difficulty}
         playerName={playerName}
         highScore={topScores && topScores.length > 0 ? topScores[0].score : 0}
         personalHighScore={personalHighScore}
@@ -189,6 +232,7 @@ function App() {
         onBeerPickup={handleBeerPickup}
         onApproachingHighScore={handleApproachingHighScore}
         onApproachingLife={handleApproachingLife}
+        onTierChange={handleTierChange}
       />
 
       {gameState === 'START' && (
@@ -201,19 +245,19 @@ function App() {
               </p>
             </div>
             <div className="start-tabs">
-              <button 
+              <button
                 className={`tab-btn ${startTab === 'rules' ? 'active' : ''}`}
                 onClick={() => setStartTab('rules')}
               >
                 📖 RULES
               </button>
-              <button 
+              <button
                 className={`tab-btn ${startTab === 'scores' ? 'active' : ''}`}
                 onClick={() => setStartTab('scores')}
               >
                 🏆 SCORES
               </button>
-              <button 
+              <button
                 className={`tab-btn ${startTab === 'setup' ? 'active' : ''}`}
                 onClick={() => setStartTab('setup')}
               >
@@ -223,14 +267,14 @@ function App() {
 
             <div className="tab-content-area">
               {startTab === 'rules' && <HowToPlayCard />}
-              
+
               {startTab === 'scores' && (
                 <div className="home-leaderboard-section">
-                  <Scoreboard 
-                    scores={topScores} 
-                    isAdmin={leaderboardUnlocked} 
-                    onUpdateScore={updateScore} 
-                    onDeleteScore={deleteScore} 
+                  <Scoreboard
+                    scores={topScores}
+                    isAdmin={leaderboardUnlocked}
+                    onUpdateScore={updateScore}
+                    onDeleteScore={deleteScore}
                   />
                 </div>
               )}
@@ -272,7 +316,7 @@ function App() {
                       )}
                     </div>
                   )}
-                  
+
                   {leaderboardUnlocked && (
                     <>
                       <div className="admin-suggestions-panel">
@@ -314,7 +358,7 @@ function App() {
                   onChange={(e) => setPlayerName(e.target.value)}
                   maxLength={20}
                   readOnly={isReturningPlayer && nameLocked}
-                  onKeyDown={(e) => e.key === 'Enter' && startGame()}
+                  onKeyDown={(e) => e.key === 'Enter' && startGame('normal')}
                 />
                 {isReturningPlayer && nameLocked && (
                   <button
@@ -325,10 +369,23 @@ function App() {
                   </button>
                 )}
               </div>
-              <button className="btn" onClick={startGame} disabled={!playerName.trim()} style={{width: '240px'}}>
-                TAP TO PLAY
-              </button>
-              
+              <div className="difficulty-buttons">
+                <button
+                  className="btn difficulty-btn difficulty-normal"
+                  onClick={() => startGame('normal')}
+                  disabled={!playerName.trim()}
+                >
+                  NORMAL
+                </button>
+                <button
+                  className="btn difficulty-btn difficulty-hard"
+                  onClick={() => startGame('hard')}
+                  disabled={!playerName.trim()}
+                >
+                  💀 HARD
+                </button>
+              </div>
+
               <p className="controls-hint">
                 MIDDLE to step · SIDE to dodge
               </p>
@@ -347,10 +404,13 @@ function App() {
             <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #ef4444, #7f1d1d)'}}>SPLAT!</h1>
             <h2 className="subtitle">You got wiped out.</h2>
             <p style={{color: '#f8fafc', fontSize: '1.5rem', fontWeight: 'bold'}}>Steps: {score}</p>
+            <p style={{color: '#94a3b8', fontSize: '0.9rem'}}>
+              {difficulty === 'hard' ? '💀 Hard Mode' : 'Normal Mode'} · Reached: {getTierName(score)}
+            </p>
             <Scoreboard scores={topScores} />
           </div>
           <div className="screen-sticky-buttons">
-            <button className="btn" onClick={startGame}>Try Again</button>
+            <button className="btn" onClick={() => startGame(difficulty)}>Try Again</button>
             <button className="menu-btn" onClick={goToMainMenu}>🏠 Main Menu</button>
           </div>
         </div>
@@ -362,11 +422,14 @@ function App() {
             <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #f59e0b, #fbbf24)'}}>🏆 THE BOSS 🏆</h1>
             <h2 className="subtitle">Welcome to The Coomera Lodge!</h2>
             <p style={{fontSize: '2.5rem', fontWeight: 900, color: '#fcd34d', margin: '1rem 0'}}>Time: {finalTime.toFixed(2)}s</p>
+            <p style={{color: '#94a3b8', fontSize: '0.9rem'}}>
+              {difficulty === 'hard' ? '💀 Hard Mode' : 'Normal Mode'}
+            </p>
             <p>You survived {GAME_RULES.targetSteps} steps and are now the official Owner of the Pub.</p>
             <Scoreboard scores={topScores} />
           </div>
           <div className="screen-sticky-buttons">
-            <button className="btn" onClick={startGame}>Defend Your Title</button>
+            <button className="btn" onClick={() => startGame(difficulty)}>Defend Your Title</button>
             <button className="menu-btn" onClick={goToMainMenu}>🏠 Main Menu</button>
           </div>
         </div>
