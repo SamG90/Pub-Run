@@ -23,4 +23,14 @@ export default defineSchema({
     .index("by_score", ["score"])
     .index("by_device", ["deviceId"])
     .index("by_player", ["playerId"]),
+
+  suggestions: defineTable({
+    playerId: v.id("players"),
+    deviceId: v.string(),
+    playerName: v.string(),
+    message: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_device", ["deviceId"]),
 });

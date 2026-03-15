@@ -35,6 +35,26 @@ const colWidth = W / COLS;
 const laneHeight = colWidth;
 const horizonY = H * 0.25;
 
+// FOV difficulty: zoom scale increases every 100 steps
+// At 0 steps: 1.0 (full view), at 900 steps: ~1.45 (very tight)
+const getFovZoom = (score) => {
+  const level = Math.floor(score / 100);
+  return 1.0 + level * 0.05;
+};
+
+// Obstacle speed also ramps up slightly per 100-step tier
+const getSpeedMultiplier = (score) => {
+  const level = Math.floor(score / 100);
+  return 1.0 + level * 0.06;
+};
+
+// Obstacle spawn chance increases with score
+const getSpawnChance = (score) => {
+  const level = Math.floor(score / 100);
+  // Starts at 0.65 (base), ramps up to ~0.85
+  return Math.min(0.85, 0.65 + level * 0.025);
+};
+
 const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGameOver, onWin, onScoreUpdate, onDodge, onBeerHit, onApproachingHighScore, onApproachingLife }) => {
   const canvasRef = useRef(null);
   const [assetsLoaded, setAssetsLoaded] = React.useState(false);
@@ -77,7 +97,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
         }
       };
     });
-    
+
     return () => {
       if (stateRef.current.animationId) {
         cancelAnimationFrame(stateRef.current.animationId);
@@ -86,20 +106,22 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     // eslint-disable-next-line
   }, []);
 
-  const generateLane = (y, isSafe = false) => {
-    let hasObstacle = !isSafe && Math.random() > 0.35;
+  const generateLane = (y, isSafe = false, score = 0) => {
+    const spawnChance = getSpawnChance(score);
+    let hasObstacle = !isSafe && Math.random() < spawnChance;
     let obstacle = null;
     let direction = Math.random() > 0.5 ? 1 : -1;
-    
+
     if (hasObstacle) {
       let type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
+      const speedMult = getSpeedMultiplier(score);
       obstacle = {
         id: type.id,
         x: direction === 1 ? -colWidth : W + colWidth,
-        speed: type.speed * direction * (0.8 + Math.random() * 0.4)
+        speed: type.speed * direction * (0.8 + Math.random() * 0.4) * speedMult
       };
     }
-    
+
     return { y, isSafe: isSafe || !hasObstacle, obstacle };
   };
 
@@ -111,11 +133,15 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     s.lives = GAME_RULES.startingLives;
     s.lanes = [];
     s.beerHitEndTime = 0;
-    
+    // Clear cached measurements so they're recalculated
+    s.leftBoxWidth = 0;
+    s.topBoxWidthName = 0;
+    s.topBoxWidthPB = 0;
+
     let currentY = H - laneHeight;
     while(currentY >= horizonY - laneHeight) {
-      let isSafe = currentY >= H - laneHeight * 3; 
-      s.lanes.unshift(generateLane(currentY, isSafe));
+      let isSafe = currentY >= H - laneHeight * 3;
+      s.lanes.unshift(generateLane(currentY, isSafe, 0));
       currentY -= laneHeight;
     }
   };
@@ -156,7 +182,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       ss.bgCanvas.width = W;
       ss.bgCanvas.height = H;
       const bctx = ss.bgCanvas.getContext('2d');
-      
+
       const sky = bctx.createLinearGradient(0, 0, 0, horizonY + 60);
       sky.addColorStop(0, '#1a1a2e');
       sky.addColorStop(0.4, '#16213e');
@@ -168,8 +194,8 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       const pubLoadImg = s.images.pub_loading || s.images.pub;
       if (pubLoadImg) {
         bctx.save();
-        bctx.translate(W / 2, horizonY); 
-        const w = W; 
+        bctx.translate(W / 2, horizonY);
+        const w = W;
         const h = w * (pubLoadImg.height / pubLoadImg.width);
         bctx.drawImage(pubLoadImg, -w / 2, -h + 220, w, h);
         bctx.restore();
@@ -237,7 +263,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
   // Handle Game State Transitions
   useEffect(() => {
     if (!assetsLoaded) return;
-    
+
     const ss = startScreenRef.current;
 
     if (gameState === 'PLAY') {
@@ -279,7 +305,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
   const moveForward = () => {
     const s = stateRef.current;
     s.score++;
-    
+
     // Gain a life every 50 steps
     if (s.score > 0 && s.score % GAME_RULES.lifeGainEverySteps === 0) {
       if (s.lives < GAME_RULES.maxLives) s.lives++;
@@ -297,24 +323,23 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     }
 
     onScoreUpdate(s.score);
-    
     if (s.score >= GAME_RULES.targetSteps) {
       onWin((Date.now() - s.startTime) / 1000);
       return;
     }
-    
+
     s.lanes.forEach(lane => lane.y += laneHeight);
-    s.lanes = s.lanes.filter(lane => lane.y < H); 
-    
+    s.lanes = s.lanes.filter(lane => lane.y < H);
+
     let topY = s.lanes[0].y - laneHeight;
-    s.lanes.unshift(generateLane(topY));
+    s.lanes.unshift(generateLane(topY, false, s.score));
   };
 
   const handlePointerDown = (e) => {
     if (gameState !== 'PLAY') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     let rect = canvas.getBoundingClientRect();
     let scaleX = canvas.width / rect.width;
     let x = (e.clientX - rect.left) * scaleX;
@@ -331,14 +356,13 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
         onDodge();
       }
     } else {
-      moveForward(); 
+      moveForward();
     }
   };
 
   const update = (dt) => {
     const s = stateRef.current;
     let pX = s.player.col * colWidth + colWidth / 2;
-    let pY = H - laneHeight * 2 + laneHeight / 2;
 
     s.lanes.forEach(lane => {
       if (lane.obstacle) {
@@ -381,52 +405,52 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
     let progress = s.score / GAME_RULES.targetSteps;
     let scale = 0.4 + (progress * 1.6);
-    
+
     ctx.save();
-    ctx.translate(W / 2, horizonY); 
+    ctx.translate(W / 2, horizonY);
     ctx.scale(scale, scale);
 
     // River
     ctx.fillStyle = '#3b82f6';
-    ctx.fillRect(-W, -35, W * 2, 35); 
+    ctx.fillRect(-W, -35, W * 2, 35);
 
     // Draw pub image at center — use the higher quality Loading image
     const pubImg = s.images.pub_loading || s.images.pub;
     if (pubImg) {
-        const w = 450; 
+        const w = 450;
         const h = w * (pubImg.height / pubImg.width);
-        
+
         ctx.save();
-        
+
         if (!s.pubMaskedCanvas) {
             // Create a soft vignette/mask to blend the building edges
             const maskCanvas = document.createElement('canvas');
             maskCanvas.width = w;
             maskCanvas.height = h;
             const mctx = maskCanvas.getContext('2d');
-            
+
             mctx.drawImage(pubImg, 0, 0, w, h);
-            
+
             // Use 'destination-in' to apply a soft alpha mask
             mctx.globalCompositeOperation = 'destination-in';
-            
+
             // Radial gradient for soft side edges
             const radGrd = mctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
             radGrd.addColorStop(0.7, 'rgba(0,0,0,1)');
             radGrd.addColorStop(1, 'rgba(0,0,0,0)');
             mctx.fillStyle = radGrd;
             mctx.fillRect(0, 0, w, h);
-            
+
             // Linear gradient for soft bottom/river blend
             const linGrd = mctx.createLinearGradient(0, 0, 0, h);
             linGrd.addColorStop(0.8, 'rgba(0,0,0,1)');
             linGrd.addColorStop(1, 'rgba(0,0,0,0)');
             mctx.fillStyle = linGrd;
             mctx.fillRect(0, 0, w, h);
-            
+
             s.pubMaskedCanvas = maskCanvas;
         }
-        
+
         // Draw the masked result
         ctx.drawImage(s.pubMaskedCanvas, -w/2, -h + 20);
         ctx.restore();
@@ -453,7 +477,20 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
     }
 
     ctx.clearRect(0, 0, W, H);
-    
+
+    // ── FOV zoom: scale the game world around the player ──
+    const fovZoom = gameState === 'PLAY' ? getFovZoom(s.score) : 1.0;
+    const playerCenterX = s.player.col * colWidth + colWidth / 2;
+    const playerCenterY = H - laneHeight * 2 + laneHeight / 2;
+
+    ctx.save();
+    if (fovZoom > 1.0) {
+      // Zoom centered on the player position
+      ctx.translate(playerCenterX, playerCenterY);
+      ctx.scale(fovZoom, fovZoom);
+      ctx.translate(-playerCenterX, -playerCenterY);
+    }
+
     // Draw lanes
     s.lanes.forEach(lane => {
       ctx.fillStyle = lane.isSafe ? '#22c55e' : '#334155';
@@ -490,11 +527,24 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
        ctx.drawImage(s.images.player, (cx - w/2) | 0, (cy - h/2) | 0, w, h);
     }
 
+    // Restore from FOV zoom before drawing UI overlay
+    ctx.restore();
+
+    // ── Vignette overlay to sell the FOV tightening ──
+    if (gameState === 'PLAY' && fovZoom > 1.0) {
+      const intensity = Math.min((fovZoom - 1.0) / 0.5, 1.0); // 0 to 1 over the zoom range
+      const vignetteGrad = ctx.createRadialGradient(W/2, H/2, W * 0.25, W/2, H/2, W * 0.7);
+      vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      vignetteGrad.addColorStop(1, `rgba(0,0,0,${0.3 * intensity})`);
+      ctx.fillStyle = vignetteGrad;
+      ctx.fillRect(0, 0, W, H);
+    }
+
     // --- Overlay UI (Lives, Progress Bar, Player/High Score, Distractions) ---
     if (gameState === 'PLAY') {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      
+
       // Top Left: Lives & All-Time High Score
       ctx.font = '24px sans-serif';
       // Max width computation for lives and high score title
@@ -503,11 +553,11 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
         let allText = `All-Time High: ${highScore}`;
         s.leftBoxWidth = Math.max(ctx.measureText(maxLivesText).width, ctx.measureText(allText).width) + 20;
       }
-      
+
       let livesText = 'Lives: ' + '🍺'.repeat(s.lives);
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.fillRect(8, 8, s.leftBoxWidth, 64);
-      
+
       ctx.fillStyle = 'white';
       ctx.fillText(livesText, 14, 12);
       ctx.font = '16px sans-serif';
@@ -524,14 +574,14 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       let topBoxWidth = Math.max(s.topBoxWidthName, ctx.measureText(`Score: ${s.score}`).width, s.topBoxWidthPB) + 20;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.fillRect(W - topBoxWidth - 10, 8, topBoxWidth, 76);
-      
+
       ctx.fillStyle = 'white';
       ctx.fillText(playerName || 'Player', W - 20, 14);
-      
+
       ctx.font = '16px sans-serif';
       ctx.fillStyle = '#fef08a'; // subtle yellow for PB
       ctx.fillText(`PB: ${personalHighScore || 0}`, W - 20, 40);
-      
+
       ctx.fillStyle = '#22c55e'; // green for live score
       ctx.fillText(`Score: ${s.score}`, W - 20, 60);
 
@@ -558,12 +608,24 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.strokeRect(barX, barY, barWidth, barHeight);
-      
+
       ctx.textAlign = 'center';
       ctx.fillStyle = '#fff';
       ctx.font = '12px sans-serif';
       ctx.fillText(currentLevel.toString(), barX - 20, barY + 1);
       ctx.fillText(nextLevel.toString(), barX + barWidth + 20, barY + 1);
+
+      // FOV warning indicator at milestones
+      const level = Math.floor(s.score / 100);
+      if (level > 0 && s.score % 100 < 15) {
+        const fadeAlpha = 1 - (s.score % 100) / 15;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillStyle = `rgba(239, 68, 68, ${fadeAlpha})`;
+        ctx.fillText('👁️ VISION NARROWING 👁️', W / 2, barY + 42);
+        ctx.restore();
+      }
 
       // Middle Screen Distraction when near high score
       let distToHighScore = highScore - s.score;
@@ -585,7 +647,7 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
          ctx.font = '900 36px Impact, sans-serif';
          ctx.textAlign = 'center';
          ctx.textBaseline = 'middle';
-         
+
          // Glow/shadow
          ctx.shadowColor = 'rgba(239, 68, 68, 0.8)'; // red glow
          ctx.shadowBlur = 20;
@@ -593,10 +655,10 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
          ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + glow * 0.4})`;
          ctx.strokeStyle = `rgba(0, 0, 0, ${0.4 + glow * 0.4})`;
          ctx.lineWidth = 4;
-         
+
          ctx.strokeText(msg, 0, 0);
          ctx.fillText(msg, 0, 0);
-         
+
          ctx.restore();
       }
     }
@@ -608,20 +670,20 @@ const CanvasGame = ({ gameState, playerName, highScore, personalHighScore, onGam
 
     let dt = time - s.lastTime;
     s.lastTime = time;
-    
+
     update(dt);
     draw();
-    
+
     if (gameState === 'PLAY') {
       s.animationId = requestAnimationFrame(loop);
     }
   };
 
   return (
-    <canvas 
-      ref={canvasRef} 
-      width={W} 
-      height={H} 
+    <canvas
+      ref={canvasRef}
+      width={W}
+      height={H}
       onPointerDown={handlePointerDown}
       style={{ cursor: 'pointer', width: '100%', height: '100%', display: 'block' }}
     />

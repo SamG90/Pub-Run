@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import './App.css';
@@ -7,6 +7,7 @@ import SoundSynth from './SoundSynth';
 import Scoreboard from './Scoreboard';
 import useDeviceIdentity from './useDeviceIdentity';
 import { GAME_RULES, OBSTACLE_LABELS } from './gameRules';
+import HowToPlayCard from './HowToPlayCard';
 
 const WRONG_PASSWORD_MSGS = [
   "Nice try, ya drongo! 🦘",
@@ -42,6 +43,10 @@ function App() {
   const topScores = useQuery(api.scores.getTopScores);
   const personalHighScore = useQuery(api.scores.getPlayerTopScore, { deviceId }) || 0;
   const submitScore = useMutation(api.scores.submitScore);
+  const suggestionsForReview = useQuery(
+    api.scores.getSuggestionsForReview,
+    leaderboardUnlocked ? {} : 'skip'
+  );
   const updateScore = useMutation(api.scores.updateScore);
   const deleteScore = useMutation(api.scores.deleteScore);
 
@@ -147,6 +152,15 @@ function App() {
     }
   }, [leaderboardPassword]);
 
+  const formattedSuggestions = useMemo(() => {
+    if (!suggestionsForReview) return null;
+
+    return suggestionsForReview.map((suggestion) => ({
+      ...suggestion,
+      createdAtLabel: new Date(suggestion.createdAt).toLocaleString(),
+    }));
+  }, [suggestionsForReview]);
+
   return (
     <div className="app-container">
       {gameState === 'PLAY' && (
@@ -200,30 +214,7 @@ function App() {
               TAP TO PLAY
             </button>
 
-            <div className="instruction-card">
-              <h2>📘 How to Play</h2>
-              <p><strong>Target:</strong> Reach <strong>{GAME_RULES.targetSteps} steps</strong> to arrive at <strong>The Coomera Lodge</strong> and win.</p>
-
-              <h3>🎮 Controls</h3>
-              <ul>
-                <li><strong>Tap middle third:</strong> Move forward and gain <strong>+1 step</strong>.</li>
-                <li><strong>Tap left / right third:</strong> Change lanes to dodge obstacles.</li>
-                <li><strong>Only middle taps increase score:</strong> Dodging does not add steps.</li>
-              </ul>
-
-              <h3>🚧 Obstacles (all current types)</h3>
-              <p>{OBSTACLE_LABELS.join(', ')}.</p>
-
-              <h3>🍺 Lives, perks & milestones</h3>
-              <ul>
-                <li><strong>Start:</strong> You begin with <strong>{GAME_RULES.startingLives} life</strong>.</li>
-                <li><strong>Life gain:</strong> Every <strong>{GAME_RULES.lifeGainEverySteps} steps</strong>, gain +1 life (max <strong>{GAME_RULES.maxLives}</strong>).</li>
-                <li><strong>Collision:</strong> If you have a life, you lose 1 and that obstacle is cleared.</li>
-                <li><strong>Game over:</strong> If you are on 0 lives, the next collision ends the run.</li>
-                <li><strong>Milestones:</strong> 100 = Beer, 200 = Pint, 300 = Spirit, then shoutouts every 100 up to 900.</li>
-                <li><strong>Pressure alerts:</strong> Warning/hype triggers when you are within {GAME_RULES.highScoreWarningDistance} of the all-time high score.</li>
-              </ul>
-            </div>
+            <HowToPlayCard />
 
             <div className="home-leaderboard-section">
               <Scoreboard 
@@ -262,7 +253,7 @@ function App() {
                     setLeaderboardPassword('');
                   }}>Cancel</button>
                   {passwordError && (
-                    <p className="password-error" key={passwordError + Date.now()}>
+                    <p className="password-error" key={passwordError}>
                       {passwordError}
                     </p>
                   )}
@@ -270,9 +261,31 @@ function App() {
               )}
               
               {leaderboardUnlocked && (
-                <button className="settings-toggle-btn" onClick={() => setLeaderboardUnlocked(false)}>
-                  🔒 Lock Settings
-                </button>
+                <>
+                  <div className="admin-suggestions-panel">
+                    <h3>💡 Suggestions for review</h3>
+                    {!formattedSuggestions ? (
+                      <p className="admin-suggestion-empty">Loading suggestions…</p>
+                    ) : formattedSuggestions.length === 0 ? (
+                      <p className="admin-suggestion-empty">No suggestions submitted yet.</p>
+                    ) : (
+                      <ul className="admin-suggestions-list">
+                        {formattedSuggestions.map((suggestion) => (
+                          <li className="admin-suggestion-item" key={suggestion._id}>
+                            <p className="admin-suggestion-meta">
+                              <strong>{suggestion.playerName}</strong> · {suggestion.createdAtLabel}
+                            </p>
+                            <p className="admin-suggestion-message">{suggestion.message}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <button className="settings-toggle-btn" onClick={() => setLeaderboardUnlocked(false)}>
+                    🔒 Lock Settings
+                  </button>
+                </>
               )}
             </div>
 
@@ -290,11 +303,13 @@ function App() {
 
       {gameState === 'GAMEOVER' && (
         <div className="screen">
-          <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #ef4444, #7f1d1d)'}}>SPLAT!</h1>
-          <h2 className="subtitle">You got wiped out.</h2>
-          <p style={{color: '#f8fafc', fontSize: '1.5rem', fontWeight: 'bold'}}>Steps: {score}</p>
-          <Scoreboard scores={topScores} />
-          <div className="gameover-buttons">
+          <div className="screen-scroll-content">
+            <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #ef4444, #7f1d1d)'}}>SPLAT!</h1>
+            <h2 className="subtitle">You got wiped out.</h2>
+            <p style={{color: '#f8fafc', fontSize: '1.5rem', fontWeight: 'bold'}}>Steps: {score}</p>
+            <Scoreboard scores={topScores} />
+          </div>
+          <div className="screen-sticky-buttons">
             <button className="btn" onClick={startGame}>Try Again</button>
             <button className="menu-btn" onClick={goToMainMenu}>🏠 Main Menu</button>
           </div>
@@ -303,12 +318,14 @@ function App() {
 
       {gameState === 'WIN' && (
         <div className="screen">
-          <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #f59e0b, #fbbf24)'}}>🏆 THE BOSS 🏆</h1>
-          <h2 className="subtitle">Welcome to The Coomera Lodge!</h2>
-          <p style={{fontSize: '2.5rem', fontWeight: 900, color: '#fcd34d', margin: '1rem 0'}}>Time: {finalTime.toFixed(2)}s</p>
-          <p>You survived {GAME_RULES.targetSteps} steps and are now the official Owner of the Pub.</p>
-          <Scoreboard scores={topScores} />
-          <div className="gameover-buttons">
+          <div className="screen-scroll-content">
+            <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #f59e0b, #fbbf24)'}}>🏆 THE BOSS 🏆</h1>
+            <h2 className="subtitle">Welcome to The Coomera Lodge!</h2>
+            <p style={{fontSize: '2.5rem', fontWeight: 900, color: '#fcd34d', margin: '1rem 0'}}>Time: {finalTime.toFixed(2)}s</p>
+            <p>You survived {GAME_RULES.targetSteps} steps and are now the official Owner of the Pub.</p>
+            <Scoreboard scores={topScores} />
+          </div>
+          <div className="screen-sticky-buttons">
             <button className="btn" onClick={startGame}>Defend Your Title</button>
             <button className="menu-btn" onClick={goToMainMenu}>🏠 Main Menu</button>
           </div>
