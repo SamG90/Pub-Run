@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import './App.css';
@@ -6,6 +6,8 @@ import CanvasGame from './CanvasGame';
 import SoundSynth from './SoundSynth';
 import Scoreboard from './Scoreboard';
 import useDeviceIdentity from './useDeviceIdentity';
+import { GAME_RULES, OBSTACLE_LABELS } from './gameRules';
+import HowToPlayCard from './HowToPlayCard';
 
 const WRONG_PASSWORD_MSGS = [
   "Nice try, ya drongo! 🦘",
@@ -41,6 +43,10 @@ function App() {
   const topScores = useQuery(api.scores.getTopScores);
   const personalHighScore = useQuery(api.scores.getPlayerTopScore, { deviceId }) || 0;
   const submitScore = useMutation(api.scores.submitScore);
+  const suggestionsForReview = useQuery(
+    api.scores.getSuggestionsForReview,
+    leaderboardUnlocked ? {} : 'skip'
+  );
   const updateScore = useMutation(api.scores.updateScore);
   const deleteScore = useMutation(api.scores.deleteScore);
 
@@ -85,7 +91,7 @@ function App() {
       await submitScore({
         deviceId,
         playerName: playerName.trim(),
-        score: 1000,
+        score: GAME_RULES.targetSteps,
         gameResult: 'win',
         runTime: timeTakenSeconds,
       });
@@ -111,7 +117,7 @@ function App() {
     if (newScore === 100) msg = '🍺 YOU EARNED A BEER!';
     else if (newScore === 200) msg = '🍻 YOU EARNED A PINT!';
     else if (newScore === 300) msg = '🥃 YOU EARNED A SPIRIT!';
-    else if (newScore % 100 === 0 && newScore > 300 && newScore < 1000) msg = `🔥 ${newScore} STEPS!`;
+    else if (newScore % 100 === 0 && newScore > 300 && newScore < GAME_RULES.targetSteps) msg = `🔥 ${newScore} STEPS!`;
 
     if (msg) {
       if (synthRef.current) synthRef.current.milestone();
@@ -151,6 +157,15 @@ function App() {
       setLeaderboardPassword('');
     }
   }, [leaderboardPassword]);
+
+  const formattedSuggestions = useMemo(() => {
+    if (!suggestionsForReview) return null;
+
+    return suggestionsForReview.map((suggestion) => ({
+      ...suggestion,
+      createdAtLabel: new Date(suggestion.createdAt).toLocaleString(),
+    }));
+  }, [suggestionsForReview]);
 
   return (
     <div className="app-container">
@@ -206,6 +221,8 @@ function App() {
               TAP TO PLAY
             </button>
 
+            <HowToPlayCard />
+
             <div className="home-leaderboard-section">
               <Scoreboard 
                 scores={topScores} 
@@ -243,7 +260,7 @@ function App() {
                     setLeaderboardPassword('');
                   }}>Cancel</button>
                   {passwordError && (
-                    <p className="password-error" key={passwordError + Date.now()}>
+                    <p className="password-error" key={passwordError}>
                       {passwordError}
                     </p>
                   )}
@@ -251,9 +268,31 @@ function App() {
               )}
               
               {leaderboardUnlocked && (
-                <button className="settings-toggle-btn" onClick={() => setLeaderboardUnlocked(false)}>
-                  🔒 Lock Settings
-                </button>
+                <>
+                  <div className="admin-suggestions-panel">
+                    <h3>💡 Suggestions for review</h3>
+                    {!formattedSuggestions ? (
+                      <p className="admin-suggestion-empty">Loading suggestions…</p>
+                    ) : formattedSuggestions.length === 0 ? (
+                      <p className="admin-suggestion-empty">No suggestions submitted yet.</p>
+                    ) : (
+                      <ul className="admin-suggestions-list">
+                        {formattedSuggestions.map((suggestion) => (
+                          <li className="admin-suggestion-item" key={suggestion._id}>
+                            <p className="admin-suggestion-meta">
+                              <strong>{suggestion.playerName}</strong> · {suggestion.createdAtLabel}
+                            </p>
+                            <p className="admin-suggestion-message">{suggestion.message}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <button className="settings-toggle-btn" onClick={() => setLeaderboardUnlocked(false)}>
+                    🔒 Lock Settings
+                  </button>
+                </>
               )}
             </div>
 
@@ -271,11 +310,13 @@ function App() {
 
       {gameState === 'GAMEOVER' && (
         <div className="screen">
-          <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #ef4444, #7f1d1d)'}}>SPLAT!</h1>
-          <h2 className="subtitle">You got wiped out.</h2>
-          <p style={{color: '#f8fafc', fontSize: '1.5rem', fontWeight: 'bold'}}>Steps: {score}</p>
-          <Scoreboard scores={topScores} />
-          <div className="gameover-buttons">
+          <div className="screen-scroll-content">
+            <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #ef4444, #7f1d1d)'}}>SPLAT!</h1>
+            <h2 className="subtitle">You got wiped out.</h2>
+            <p style={{color: '#f8fafc', fontSize: '1.5rem', fontWeight: 'bold'}}>Steps: {score}</p>
+            <Scoreboard scores={topScores} />
+          </div>
+          <div className="screen-sticky-buttons">
             <button className="btn" onClick={startGame}>Try Again</button>
             <button className="menu-btn" onClick={goToMainMenu}>🏠 Main Menu</button>
           </div>
@@ -284,12 +325,14 @@ function App() {
 
       {gameState === 'WIN' && (
         <div className="screen">
-          <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #f59e0b, #fbbf24)'}}>🏆 THE BOSS 🏆</h1>
-          <h2 className="subtitle">Welcome to The Coomera Lodge!</h2>
-          <p style={{fontSize: '2.5rem', fontWeight: 900, color: '#fcd34d', margin: '1rem 0'}}>Time: {finalTime.toFixed(2)}s</p>
-          <p>You survived 1000 steps and are now the official Owner of the Pub.</p>
-          <Scoreboard scores={topScores} />
-          <div className="gameover-buttons">
+          <div className="screen-scroll-content">
+            <h1 className="title" style={{backgroundImage: 'linear-gradient(135deg, #f59e0b, #fbbf24)'}}>🏆 THE BOSS 🏆</h1>
+            <h2 className="subtitle">Welcome to The Coomera Lodge!</h2>
+            <p style={{fontSize: '2.5rem', fontWeight: 900, color: '#fcd34d', margin: '1rem 0'}}>Time: {finalTime.toFixed(2)}s</p>
+            <p>You survived {GAME_RULES.targetSteps} steps and are now the official Owner of the Pub.</p>
+            <Scoreboard scores={topScores} />
+          </div>
+          <div className="screen-sticky-buttons">
             <button className="btn" onClick={startGame}>Defend Your Title</button>
             <button className="menu-btn" onClick={goToMainMenu}>🏠 Main Menu</button>
           </div>
