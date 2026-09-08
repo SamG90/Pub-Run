@@ -1,123 +1,143 @@
 export default class SoundSynth {
   constructor() {
     this.audioCtx = null;
+    this.masterGain = null;
+    this.enabled = true;
+    this.lastStepAt = 0;
+    this.lastWarningAt = 0;
   }
 
-  // Audio Context must be initialized after user interaction
-  init() {
+  // Audio must be initialised from a user gesture on mobile browsers.
+  async init() {
     if (!this.audioCtx) {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      this.masterGain = this.audioCtx.createGain();
+      this.masterGain.gain.value = this.enabled ? 0.65 : 0;
+
+      const compressor = this.audioCtx.createDynamicsCompressor();
+      compressor.threshold.value = -18;
+      compressor.knee.value = 16;
+      compressor.ratio.value = 8;
+      compressor.attack.value = 0.004;
+      compressor.release.value = 0.16;
+      this.masterGain.connect(compressor);
+      compressor.connect(this.audioCtx.destination);
     }
-    if (this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume();
+    if (this.audioCtx.state === 'suspended') await this.audioCtx.resume();
+  }
+
+  setEnabled(enabled) {
+    this.enabled = enabled;
+    if (this.audioCtx && this.masterGain) {
+      const now = this.audioCtx.currentTime;
+      this.masterGain.gain.cancelScheduledValues(now);
+      this.masterGain.gain.linearRampToValueAtTime(enabled ? 0.65 : 0, now + 0.08);
     }
   }
 
-  playTone(freq, type, duration, vol, attack = 0.01, release = 0.1) {
-    if (!this.audioCtx) return;
-    const osc = this.audioCtx.createOscillator();
-    const gainNode = this.audioCtx.createGain();
+  playTone(freq, type, duration, volume, attack = 0.008, release = 0.08, slideTo = null) {
+    if (!this.audioCtx || !this.enabled || !this.masterGain) return;
+    const now = this.audioCtx.currentTime;
+    const oscillator = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
 
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(freq, now);
+    if (slideTo) oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), now + duration);
 
-    // Envelope to prevent clipping/clicking
-    gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(vol, this.audioCtx.currentTime + attack);
-    gainNode.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + duration);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), now + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(attack + 0.01, duration - release));
 
-    osc.connect(gainNode);
-    gainNode.connect(this.audioCtx.destination);
+    oscillator.connect(gain);
+    gain.connect(this.masterGain);
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.03);
+  }
 
-    osc.start(this.audioCtx.currentTime);
-    osc.stop(this.audioCtx.currentTime + duration);
+  playNoise(duration, volume, cutoffStart, cutoffEnd = 100) {
+    if (!this.audioCtx || !this.enabled || !this.masterGain) return;
+    const now = this.audioCtx.currentTime;
+    const buffer = this.audioCtx.createBuffer(1, Math.ceil(this.audioCtx.sampleRate * duration), this.audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let index = 0; index < data.length; index++) data[index] = Math.random() * 2 - 1;
+
+    const noise = this.audioCtx.createBufferSource();
+    const filter = this.audioCtx.createBiquadFilter();
+    const gain = this.audioCtx.createGain();
+    noise.buffer = buffer;
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(cutoffStart, now);
+    filter.frequency.exponentialRampToValueAtTime(cutoffEnd, now + duration);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    noise.start(now);
   }
 
   step() {
-    // Lower pitched sound for stepping
-    this.playTone(150, 'triangle', 0.05, 0.03, 0.01, 0.04);
+    if (!this.audioCtx || performance.now() - this.lastStepAt < 55) return;
+    this.lastStepAt = performance.now();
+    this.playTone(142, 'triangle', 0.07, 0.075, 0.005, 0.04, 105);
   }
 
   dodge() {
-    this.playTone(400, 'sine', 0.1, 0.04, 0.01, 0.09);
-    setTimeout(() => this.playTone(300, 'sine', 0.1, 0.04, 0.01, 0.09), 60);
+    this.playTone(420, 'sine', 0.085, 0.1, 0.004, 0.05, 620);
+    this.playTone(820, 'triangle', 0.065, 0.035, 0.004, 0.04, 980);
   }
 
   enterGame() {
-    // Welcoming rising chord
-    this.playTone(261.63, 'sine', 0.3, 0.1, 0.05, 0.2); // C4
-    setTimeout(() => this.playTone(329.63, 'sine', 0.3, 0.1, 0.05, 0.2), 100); // E4
-    setTimeout(() => this.playTone(392.00, 'sine', 0.4, 0.1, 0.05, 0.3), 200); // G4
-    setTimeout(() => this.playTone(523.25, 'sine', 0.6, 0.15, 0.05, 0.5), 300); // C5
+    [261.63, 329.63, 392, 523.25].forEach((note, index) => {
+      window.setTimeout(() => this.playTone(note, 'triangle', 0.22 + index * 0.03, 0.13, 0.01, 0.12), index * 75);
+    });
   }
 
   approachingHighScore() {
-    // Tense, low heartbeat sound
-    this.playTone(80, 'sine', 0.15, 0.2, 0.05, 0.1);
-    setTimeout(() => this.playTone(70, 'sine', 0.2, 0.2, 0.05, 0.15), 200);
+    if (!this.audioCtx || performance.now() - this.lastWarningAt < 650) return;
+    this.lastWarningAt = performance.now();
+    this.playTone(92, 'sine', 0.13, 0.16, 0.02, 0.08, 78);
   }
 
   approachingLife() {
-    // Magical twinkling, rising chime
-    this.playTone(659.25, 'triangle', 0.1, 0.05, 0.02, 0.08); // E5
-    setTimeout(() => this.playTone(880.00, 'triangle', 0.1, 0.05, 0.02, 0.08), 80); // A5
-    setTimeout(() => this.playTone(1046.50, 'triangle', 0.15, 0.05, 0.02, 0.1), 160); // C6
+    [659.25, 880, 1046.5].forEach((note, index) => {
+      window.setTimeout(() => this.playTone(note, 'triangle', 0.12, 0.07, 0.008, 0.07), index * 70);
+    });
   }
 
   crash() {
-    if (!this.audioCtx) return;
-    const duration = 0.5;
-    const bufferSize = this.audioCtx.sampleRate * duration;
-    const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-    }
-    const noise = this.audioCtx.createBufferSource();
-    noise.buffer = buffer;
-    
-    const filter = this.audioCtx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(2000, this.audioCtx.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(100, this.audioCtx.currentTime + duration);
-
-    const gainNode = this.audioCtx.createGain();
-    gainNode.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + duration);
-    
-    noise.connect(filter);
-    filter.connect(gainNode);
-    gainNode.connect(this.audioCtx.destination);
-    
-    noise.start();
+    this.playNoise(0.42, 0.5, 2600, 90);
+    this.playTone(112, 'sawtooth', 0.38, 0.18, 0.008, 0.22, 38);
   }
 
   beerHit() {
-    if (!this.audioCtx) return;
-    // Lower, more punishing thud
-    this.playTone(150, 'sawtooth', 0.1, 0.3, 0.02, 0.1);
-    setTimeout(() => this.playTone(100, 'sawtooth', 0.2, 0.3, 0.02, 0.2), 80);
-    setTimeout(() => this.playTone(50, 'sawtooth', 0.4, 0.3, 0.02, 0.4), 200);
-    this.crash(); // use existing crash noise for extra effect
+    this.playTone(168, 'square', 0.12, 0.14, 0.006, 0.08, 86);
+    window.setTimeout(() => this.playTone(82, 'sawtooth', 0.26, 0.16, 0.01, 0.16, 42), 60);
+    this.playNoise(0.24, 0.23, 1500, 240);
   }
 
   beerPickup() {
-    // Fast, bright pickup jingle inspired by classic platformers
-    this.playTone(783.99, 'square', 0.08, 0.08, 0.005, 0.06); // G5
-    setTimeout(() => this.playTone(987.77, 'square', 0.08, 0.08, 0.005, 0.06), 70); // B5
-    setTimeout(() => this.playTone(1174.66, 'square', 0.1, 0.09, 0.005, 0.08), 140); // D6
+    [783.99, 987.77, 1174.66].forEach((note, index) => {
+      window.setTimeout(() => this.playTone(note, 'square', 0.1, 0.09, 0.004, 0.06), index * 62);
+    });
   }
 
   milestone() {
-    this.playTone(523.25, 'sine', 0.2, 0.1); 
-    setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.1), 100); 
-    setTimeout(() => this.playTone(783.99, 'sine', 0.4, 0.1), 200); 
+    [523.25, 659.25, 783.99].forEach((note, index) => {
+      window.setTimeout(() => this.playTone(note, 'triangle', 0.2, 0.11, 0.008, 0.11), index * 85);
+    });
+  }
+
+  tierUp() {
+    [392, 493.88, 587.33, 783.99].forEach((note, index) => {
+      window.setTimeout(() => this.playTone(note, 'triangle', 0.18, 0.105, 0.006, 0.1), index * 70);
+    });
   }
 
   win() {
-    this.playTone(523.25, 'triangle', 0.15, 0.1);
-    setTimeout(() => this.playTone(523.25, 'triangle', 0.15, 0.1), 150);
-    setTimeout(() => this.playTone(523.25, 'triangle', 0.15, 0.1), 300);
-    setTimeout(() => this.playTone(698.46, 'triangle', 0.6, 0.1), 450);
+    [523.25, 523.25, 523.25, 698.46, 1046.5].forEach((note, index) => {
+      window.setTimeout(() => this.playTone(note, 'triangle', index === 4 ? 0.7 : 0.15, 0.12, 0.008, 0.12), index * 125);
+    });
   }
 }

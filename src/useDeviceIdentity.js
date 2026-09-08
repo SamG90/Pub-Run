@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const DEVICE_ID_KEY = 'pubrun_device_id';
 const PLAYER_NAME_KEY = 'pubrun_player_name';

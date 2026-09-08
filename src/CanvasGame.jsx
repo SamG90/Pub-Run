@@ -35,6 +35,27 @@ const colWidth = W / COLS;
 const laneHeight = colWidth;
 const horizonY = H * 0.25;
 const OFF_CENTRE_COLS = [0, 1, 3, 4];
+const PLAYER_Y = H - laneHeight * 2 + laneHeight / 2;
+const MAX_FRAME_TIME = 40;
+
+const addBurst = (state, x, y, color, count = 8, speed = 2.5) => {
+  const now = performance.now();
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const velocity = speed * (0.45 + Math.random());
+    state.particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * velocity,
+      vy: Math.sin(angle) * velocity - 0.7,
+      size: 2 + Math.random() * 4,
+      color,
+      expiresAt: now + 260 + Math.random() * 340,
+    });
+  }
+  // A compact particle pool keeps the effect smooth on lower-end phones.
+  if (state.particles.length > 70) state.particles.splice(0, state.particles.length - 70);
+};
 
 // Difficulty-aware scaling functions
 const getFovZoom = (score, diff) => {
@@ -67,7 +88,7 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     startTime: 0,
     lanes: [],
     lastTime: 0,
-    player: { col: 2 },
+    player: { col: 2, renderCol: 2, hopUntil: 0, lean: 0 },
     lives: 3,
     images: {},
     loaded: false,
@@ -83,6 +104,9 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     blackoutNext: 0, // next time a blackout can trigger
     tierAnnouncementEnd: 0,
     tierAnnouncementText: '',
+    particles: [],
+    screenShakeEnd: 0,
+    screenShakeStrength: 0,
   });
 
   // Separate state for animated start screen
@@ -96,27 +120,27 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
 
   // Pre-load images
   useEffect(() => {
+    const state = stateRef.current;
     let loadedCount = 0;
     const keys = Object.keys(ASSETS);
     keys.forEach((key) => {
       const img = new Image();
       img.src = ASSETS[key];
       img.onload = () => {
-        stateRef.current.images[key] = img;
+        state.images[key] = img;
         loadedCount++;
         if (loadedCount === keys.length) {
-          stateRef.current.loaded = true;
+          state.loaded = true;
           setAssetsLoaded(true);
         }
       };
     });
 
     return () => {
-      if (stateRef.current.animationId) {
-        cancelAnimationFrame(stateRef.current.animationId);
+      if (state.animationId) {
+        cancelAnimationFrame(state.animationId);
       }
     };
-    // eslint-disable-next-line
   }, []);
 
   const generateLane = (y, isSafe = false, score = 0) => {
@@ -191,6 +215,9 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     s.score = 0;
     s.startTime = Date.now();
     s.player.col = Math.floor(COLS / 2);
+    s.player.renderCol = s.player.col;
+    s.player.hopUntil = 0;
+    s.player.lean = 0;
     s.lives = diff.startingLives;
     s.lanes = [];
     s.beerHitEndTime = 0;
@@ -203,6 +230,9 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     s.blackoutNext = performance.now() + 5000;
     s.tierAnnouncementEnd = 0;
     s.tierAnnouncementText = '';
+    s.particles = [];
+    s.screenShakeEnd = 0;
+    s.screenShakeStrength = 0;
     // Clear cached measurements so they're recalculated
     s.leftBoxWidth = 0;
     s.topBoxWidthName = 0;
@@ -320,7 +350,6 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
   const startScreenLoop = useCallback((time) => {
     drawStartScreen(time);
     startScreenRef.current.animId = requestAnimationFrame(startScreenLoop);
-    // eslint-disable-next-line
   }, []);
 
   // Handle Game State Transitions
@@ -366,6 +395,9 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     const s = stateRef.current;
     const diff = diffRef.current;
     s.score++;
+    const now = performance.now();
+    s.player.hopUntil = now + 150;
+    addBurst(s, s.player.renderCol * colWidth + colWidth / 2, PLAYER_Y + 34, '#fde68a', 6, 1.7);
 
     // Life gain from steps (Normal mode only)
     if (diff.lifeGainFromSteps && diff.lifeGainEverySteps > 0) {
@@ -407,6 +439,17 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     s.lanes.unshift(generateLane(topY, false, s.score));
   };
 
+  const moveSideways = (direction) => {
+    const s = stateRef.current;
+    const nextCol = s.player.col + direction;
+    if (nextCol < 0 || nextCol >= COLS) return;
+
+    s.player.col = nextCol;
+    s.player.lean = direction;
+    addBurst(s, s.player.renderCol * colWidth + colWidth / 2, PLAYER_Y + 32, '#fbbf24', 5, 1.5);
+    onDodge();
+  };
+
   const handlePointerDown = (e) => {
     if (gameState !== 'PLAY') return;
     const canvas = canvasRef.current;
@@ -416,21 +459,32 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     let scaleX = canvas.width / rect.width;
     let x = (e.clientX - rect.left) * scaleX;
 
-    const s = stateRef.current;
     if (x < W / 3) {
-      if (s.player.col > 0) {
-        s.player.col--;
-        onDodge();
-      }
+      moveSideways(-1);
     } else if (x > (W * 2) / 3) {
-      if (s.player.col < COLS - 1) {
-        s.player.col++;
-        onDodge();
-      }
+      moveSideways(1);
     } else {
       moveForward();
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (gameState !== 'PLAY' || event.repeat) return;
+      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        moveSideways(-1);
+      } else if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') {
+        event.preventDefault();
+        moveSideways(1);
+      } else if (event.key === 'ArrowUp' || event.key === ' ' || event.key === 'Enter') {
+        event.preventDefault();
+        moveForward();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, { passive: false });
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
 
   const update = (dt) => {
     const s = stateRef.current;
@@ -438,6 +492,21 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     const mechanics = getActiveMechanics(s.score, diff);
     let pX = s.player.col * colWidth + colWidth / 2;
     const now = performance.now();
+
+    // Interpolate visual movement independently of game logic. The player feels
+    // responsive while collisions still use the authoritative lane immediately.
+    s.player.renderCol += (s.player.col - s.player.renderCol) * Math.min(1, dt / 75);
+    s.player.lean *= Math.max(0, 1 - dt / 110);
+
+    s.particles = s.particles.filter((particle) => {
+      const remaining = particle.expiresAt - now;
+      if (remaining <= 0) return false;
+      particle.x += particle.vx * (dt / 16);
+      particle.y += particle.vy * (dt / 16);
+      particle.vy += 0.11 * (dt / 16);
+      particle.alpha = Math.min(1, remaining / 180);
+      return true;
+    });
 
     // ── Drunk Swerve Logic ──
     if (mechanics.drunkSwerve) {
@@ -498,6 +567,7 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
           const gainedLife = s.lives < diff.maxLives;
           if (gainedLife) s.lives++;
           lane.beerPickupCol = null;
+          addBurst(s, pX, PLAYER_Y, '#fbbf24', 14, 3.4);
           if (gainedLife && onBeerPickup) onBeerPickup();
         }
 
@@ -513,6 +583,9 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
                 s.lives--;
                 lane.obstacle = null;
                 s.beerHitEndTime = now + 5000;
+                s.screenShakeEnd = now + 360;
+                s.screenShakeStrength = 11;
+                addBurst(s, pX, PLAYER_Y, '#ef4444', 20, 4.2);
                 if (onBeerHit) onBeerHit();
               } else {
                 onGameOver(s.score, (Date.now() - s.startTime) / 1000);
@@ -525,6 +598,9 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
                 s.lives--;
                 lane.obstacle = null;
                 s.beerHitEndTime = now + 5000;
+                s.screenShakeEnd = now + 360;
+                s.screenShakeStrength = 11;
+                addBurst(s, pX, PLAYER_Y, '#ef4444', 20, 4.2);
                 if (onBeerHit) onBeerHit();
               } else {
                 onGameOver(s.score, (Date.now() - s.startTime) / 1000);
@@ -603,18 +679,16 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     const diff = diffRef.current;
     const now = performance.now();
 
-    if (gameState === 'PLAY') {
-      let isHit = now < s.beerHitEndTime;
-      if (isHit && !canvas.classList.contains('beer-hit-effect')) {
-        canvas.classList.add('beer-hit-effect');
-      } else if (!isHit && canvas.classList.contains('beer-hit-effect')) {
-        canvas.classList.remove('beer-hit-effect');
-      }
-    } else {
-      canvas.classList.remove('beer-hit-effect');
-    }
+    const isHit = gameState === 'PLAY' && now < s.beerHitEndTime;
 
     ctx.clearRect(0, 0, W, H);
+
+    const shakeRemaining = s.screenShakeEnd - now;
+    ctx.save();
+    if (shakeRemaining > 0) {
+      const intensity = (shakeRemaining / 360) * s.screenShakeStrength;
+      ctx.translate((Math.random() - 0.5) * intensity, (Math.random() - 0.5) * intensity);
+    }
 
     // ── FOV zoom ──
     const fovZoom = gameState === 'PLAY' ? getFovZoom(s.score, diff) : 1.0;
@@ -698,15 +772,31 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
     drawPub(ctx);
 
     if (s.loaded && s.images.player) {
-       let cx = s.player.col * colWidth + colWidth / 2;
-       let cy = H - laneHeight * 2 + laneHeight / 2;
+       let cx = s.player.renderCol * colWidth + colWidth / 2;
+       const hopProgress = Math.max(0, (s.player.hopUntil - now) / 150);
+       let cy = PLAYER_Y - Math.sin(hopProgress * Math.PI) * 14;
        let w = colWidth * 0.7;
        let h = w * (s.images.player.height / s.images.player.width);
-       ctx.drawImage(s.images.player, (cx - w/2) | 0, (cy - h/2) | 0, w, h);
+       ctx.save();
+       ctx.translate(cx, cy);
+       ctx.rotate(s.player.lean * 0.12);
+       ctx.drawImage(s.images.player, (-w / 2) | 0, (-h / 2) | 0, w, h);
+       ctx.restore();
     }
 
     // Restore from FOV zoom
     ctx.restore();
+
+    // Short-lived particles provide feedback without adding DOM work every frame.
+    s.particles.forEach((particle) => {
+      ctx.save();
+      ctx.globalAlpha = particle.alpha || 1;
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
 
     // ── Vignette overlay ──
     if (gameState === 'PLAY' && fovZoom > 1.0) {
@@ -715,6 +805,12 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
       vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
       vignetteGrad.addColorStop(1, `rgba(0,0,0,${0.3 * intensity})`);
       ctx.fillStyle = vignetteGrad;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    if (isHit) {
+      const pulse = 0.055 + Math.sin(now / 95) * 0.025;
+      ctx.fillStyle = `rgba(239, 68, 68, ${pulse})`;
       ctx.fillRect(0, 0, W, H);
     }
 
@@ -868,6 +964,13 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
         ctx.restore();
       }
 
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 13px Outfit, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.76)';
+      ctx.fillText('← DODGE  •  TAP / ↑ STEP  •  DODGE →', W / 2, H - 20);
+      ctx.restore();
+
       // Middle Screen Distraction when near high score
       let distToHighScore = highScore - s.score;
       if (distToHighScore > 0 && distToHighScore <= GAME_RULES.highScoreWarningDistance && s.score > 0) {
@@ -899,13 +1002,15 @@ const CanvasGame = ({ gameState, difficulty = 'normal', playerName, highScore, p
          ctx.restore();
       }
     }
+
+    ctx.restore();
   };
 
   const loop = (time) => {
     const s = stateRef.current;
     if (gameState !== 'PLAY') return;
 
-    let dt = time - s.lastTime;
+    let dt = Math.min(time - s.lastTime, MAX_FRAME_TIME);
     s.lastTime = time;
 
     update(dt);

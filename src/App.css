@@ -14,6 +14,33 @@
   user-select: none;
 }
 
+.sound-toggle {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  right: 10px;
+  z-index: 20;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: rgba(15, 23, 42, 0.76);
+  color: #f8fafc;
+  font: 700 11px/1 'Outfit', sans-serif;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.sound-toggle-in-game {
+  top: 94px;
+}
+
+.sound-toggle:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 3px;
+}
+
 /* Add box-shadow and border radius only on larger screens where it doesn't take up the whole viewport */
 @media (min-width: 501px), (min-height: 801px) {
   .app-container {
@@ -635,17 +662,15 @@ canvas {
   75% { transform: translateX(-3px); }
 }
 
-@keyframes wavyBlur {
-  0% { filter: blur(0px) hue-rotate(0deg); transform: scale(1); }
-  25% { filter: blur(3px) hue-rotate(15deg); transform: scale(1.02) skewX(2deg); }
-  50% { filter: blur(5px) hue-rotate(-15deg); transform: scale(1.04) skewX(-2deg); }
-  75% { filter: blur(3px) hue-rotate(15deg); transform: scale(1.02) skewX(2deg); }
-  100% { filter: blur(0px) hue-rotate(0deg); transform: scale(1); }
-}
-
-.beer-hit-effect {
-  animation: wavyBlur 1s ease-in-out infinite;
-  transition: filter 0.3s, transform 0.3s;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 
