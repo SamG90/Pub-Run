@@ -40,6 +40,7 @@ function App() {
   const [leaderboardUnlocked, setLeaderboardUnlocked] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [startTab, setStartTab] = useState('rules'); // rules, scores, setup
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('pub-run-sound') !== 'off');
   const { deviceId, playerName, setPlayerName, isReturningPlayer } = useDeviceIdentity();
   const synthRef = useRef(null);
   const musicRef = useRef(null);
@@ -56,16 +57,29 @@ function App() {
 
   useEffect(() => {
     synthRef.current = new SoundSynth();
+    synthRef.current.setEnabled(soundEnabled);
     musicRef.current = new MusicPlayer();
+    // The initial preference is enough here; later changes use the control below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleSound = useCallback(() => {
+    setSoundEnabled((enabled) => {
+      const nextEnabled = !enabled;
+      localStorage.setItem('pub-run-sound', nextEnabled ? 'on' : 'off');
+      synthRef.current?.setEnabled(nextEnabled);
+      if (!nextEnabled) musicRef.current?.stop(0.12);
+      return nextEnabled;
+    });
   }, []);
 
   // Play start screen music when on START
   useEffect(() => {
-    if (gameState === 'START' && musicRef.current) {
+    if (gameState === 'START' && soundEnabled && musicRef.current) {
       musicRef.current.init();
       musicRef.current.playTrack(START_MUSIC, { loop: true, volume: 0.35 });
     }
-  }, [gameState]);
+  }, [gameState, soundEnabled]);
 
   const startGame = (selectedDifficulty) => {
     if (!playerName.trim()) return;
@@ -75,7 +89,7 @@ function App() {
       synthRef.current.init();
       synthRef.current.enterGame();
     }
-    if (musicRef.current) {
+    if (soundEnabled && musicRef.current) {
       musicRef.current.init();
       // Start with tier 1 music
       const tier1Track = TIER_MUSIC[0];
@@ -91,7 +105,7 @@ function App() {
 
   const handleGameOver = async (finalScore, runTime) => {
     if (synthRef.current) synthRef.current.crash();
-    if (musicRef.current) {
+    if (soundEnabled && musicRef.current) {
       musicRef.current.stop(0.3);
       musicRef.current.playOneShot(GAMEOVER_SOUND, 0.5);
     }
@@ -159,15 +173,16 @@ function App() {
     }
   };
 
-  const handleTierChange = useCallback((tierNum, tierName) => {
+  const handleTierChange = useCallback((tierNum) => {
+    if (synthRef.current) synthRef.current.tierUp();
     // Switch music to match the new tier
-    if (musicRef.current && tierNum >= 1 && tierNum <= TIER_MUSIC.length) {
+    if (soundEnabled && musicRef.current && tierNum >= 1 && tierNum <= TIER_MUSIC.length) {
       const track = TIER_MUSIC[tierNum - 1];
       if (track) {
         musicRef.current.playTrack(track.track, { loop: true, volume: 0.4, crossfadeDuration: 2 });
       }
     }
-  }, []);
+  }, [soundEnabled]);
 
   const handleDodge = () => {
     if (synthRef.current) synthRef.current.dodge();
@@ -212,6 +227,15 @@ function App() {
 
   return (
     <div className="app-container">
+      <button
+        type="button"
+        className={`sound-toggle ${gameState === 'PLAY' ? 'sound-toggle-in-game' : ''}`}
+        onClick={toggleSound}
+        aria-pressed={soundEnabled}
+        aria-label={soundEnabled ? 'Mute sound' : 'Enable sound'}
+      >
+        {soundEnabled ? '🔊 Sound on' : '🔇 Sound off'}
+      </button>
       {gameState === 'PLAY' && (
         <>
           {milestone && <div className="milestone-msg" key={milestone}>{milestone}</div>}
